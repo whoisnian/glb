@@ -7,12 +7,11 @@ import (
 )
 
 func Clean(rawPath string) (string, error) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
-	}
-
 	if strings.HasPrefix(rawPath, "~/") {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return "", err
+		}
 		return filepath.Join(homeDir, rawPath[2:]), nil
 	}
 	return filepath.Clean(rawPath), nil
