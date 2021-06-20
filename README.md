@@ -1,1 +1,1 @@
-# glb
+# go lib
