@@ -1,7 +1,7 @@
 package ssh
 
 import (
-	"github.com/whoisnian/glb/pkg/fs"
+	"github.com/whoisnian/glb/fs"
 	xssh "golang.org/x/crypto/ssh"
 )
 

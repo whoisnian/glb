@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/whoisnian/glb/pkg/ansi"
+	"github.com/whoisnian/glb/ansi"
 )
 
 var debug bool = false

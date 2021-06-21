@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/whoisnian/glb/pkg/fs"
+	"github.com/whoisnian/glb/fs"
 	xssh "golang.org/x/crypto/ssh"
 	xagent "golang.org/x/crypto/ssh/agent"
 	"golang.org/x/term"

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/whoisnian/glb/pkg/ansi"
+	"github.com/whoisnian/glb/ansi"
 	"golang.org/x/sys/unix"
 )
 

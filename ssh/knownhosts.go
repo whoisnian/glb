@@ -3,7 +3,7 @@ package ssh
 import (
 	"net"
 
-	"github.com/whoisnian/glb/pkg/fs"
+	"github.com/whoisnian/glb/fs"
 	xssh "golang.org/x/crypto/ssh"
 	xknownhosts "golang.org/x/crypto/ssh/knownhosts"
 )
