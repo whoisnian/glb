@@ -1,3 +1,4 @@
+// Package ssh implements an SSH client(autoload SSH_AUTH_SOCK and knownhosts, only allow public key authentication).
 package ssh
 
 import (

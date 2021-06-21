@@ -1,3 +1,4 @@
+// Package logger implements a simple logger for local debug.
 package logger
 
 import (
@@ -51,6 +52,10 @@ func Error(v ...interface{}) {
 	lerr.Output(2, tagE+" "+fmt.Sprint(v...)+"\n")
 }
 
+// Example:
+//   if logger.IsDebug() {
+//       logger.Debug("The quick brown fox jumps over the lazy dog.")
+//   }
 func Debug(v ...interface{}) {
 	lout.Output(2, tagD+" "+fmt.Sprint(v...)+"\n")
 }

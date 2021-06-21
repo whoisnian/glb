@@ -1,5 +1,6 @@
 package ansi
 
+// terminfo
 const (
 	ClearScreen      string = "\x1b[H\x1b[2J"
 	ClearLineToRight string = "\x1b[K"

@@ -1,3 +1,6 @@
+// Package terminal provides support functions for dealing with terminals, only for common UNIX systems.
+//
+// The position of cursor is 1-based, so (1, 1) means 'top left corner'.
 package terminal
 
 import (
@@ -102,20 +105,24 @@ func (terminal *Terminal) GetCursorPos() (row, col int, err error) {
 	if len(pos) < 2 {
 		return -1, -1, err
 	}
-	row, _ = strconv.Atoi(string(pos[0]))
-	col, _ = strconv.Atoi(string(pos[1]))
-	return row - 1, col - 1, nil
+	if row, err = strconv.Atoi(string(pos[0])); err != nil {
+		row = 1
+	}
+	if col, err = strconv.Atoi(string(pos[1])); err != nil {
+		col = 1
+	}
+	return row, col, nil
 }
 
 func (terminal *Terminal) SetCursorPos(row, col int) {
 	if row > terminal.MaxLine {
 		terminal.MaxLine = row
 	}
-	terminal.WriteString(fmt.Sprintf(ansi.SetCursorAddress, row+1, col+1))
+	terminal.WriteString(fmt.Sprintf(ansi.SetCursorAddress, row, col))
 }
 
 func (terminal *Terminal) MoveCursorToMaxLineNext() {
-	terminal.WriteString(fmt.Sprintf(ansi.SetCursorAddress, terminal.MaxLine+2, 1))
+	terminal.WriteString(fmt.Sprintf(ansi.SetCursorAddress, terminal.MaxLine+1, 1))
 }
 
 func (terminal *Terminal) ShowCursor() {

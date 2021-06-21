@@ -1,5 +1,6 @@
 package ansi
 
+// color
 const (
 	Black   string = "\x1b[30m"
 	Red     string = "\x1b[31m"
