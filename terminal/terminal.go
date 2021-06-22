@@ -53,7 +53,7 @@ func (terminal *Terminal) ScrollClear() (err error) {
 	if _, winHeight, err := terminal.GetSize(); err == nil {
 		if cursorRow, _, err := terminal.GetCursorPos(); err == nil {
 			terminal.WriteString(fmt.Sprintf(ansi.SetCursorAddress, winHeight, 1))
-			terminal.ScrollDown(cursorRow)
+			terminal.ScrollDown(cursorRow - 1)
 			terminal.WriteString(ansi.ClearScreen)
 		}
 	}
