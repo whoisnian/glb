@@ -73,7 +73,7 @@ func (terminal *Terminal) ScrollDown(n int) {
 }
 
 func (terminal *Terminal) GetCursorPos() (row, col int, err error) {
-	termios, err := unix.IoctlGetTermios(terminal.fd, unix.TCGETS)
+	termios, err := unix.IoctlGetTermios(terminal.fd, ioctlReadTermios)
 	if err != nil {
 		return -1, -1, err
 	}
@@ -81,10 +81,10 @@ func (terminal *Terminal) GetCursorPos() (row, col int, err error) {
 
 	newState := *termios
 	newState.Lflag &^= unix.ECHO | unix.ICANON
-	if err = unix.IoctlSetTermios(terminal.fd, unix.TCSETS, &newState); err != nil {
+	if err = unix.IoctlSetTermios(terminal.fd, ioctlWriteTermios, &newState); err != nil {
 		return -1, -1, err
 	}
-	defer unix.IoctlSetTermios(terminal.fd, unix.TCSETS, termios)
+	defer unix.IoctlSetTermios(terminal.fd, ioctlWriteTermios, termios)
 
 	var buf [1]byte
 	var res []byte
@@ -142,7 +142,7 @@ func (terminal *Terminal) DisableLineWrap() {
 }
 
 func IsTerminal() bool {
-	_, err := unix.IoctlGetTermios(int(os.Stdin.Fd()), unix.TCGETS)
+	_, err := unix.IoctlGetTermios(int(os.Stdin.Fd()), ioctlReadTermios)
 	return err == nil
 }
 
