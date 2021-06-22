@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-func Clean(rawPath string) (string, error) {
+func ResolveHomeDir(rawPath string) (string, error) {
 	if strings.HasPrefix(rawPath, "~/") {
 		homeDir, err := os.UserHomeDir()
 		if err != nil {

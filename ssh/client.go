@@ -31,7 +31,7 @@ func (c *Client) Close() {
 }
 
 func (store *Store) NewClient(addr string, user string, KeyFile string) (*Client, error) {
-	keyPath, _ := fs.Clean(KeyFile)
+	keyPath, _ := fs.ResolveHomeDir(KeyFile)
 	authMethod := xssh.PublicKeys(store.signerMap[keyPath])
 
 	config := &xssh.ClientConfig{

@@ -23,7 +23,7 @@ func (emptyPublicKey) Marshal() []byte                      { return nil }
 func (emptyPublicKey) Verify([]byte, *xssh.Signature) error { return nil }
 
 func loadKnownhosts() xssh.HostKeyCallback {
-	hostKeyPath, _ := fs.Clean("~/.ssh/known_hosts")
+	hostKeyPath, _ := fs.ResolveHomeDir("~/.ssh/known_hosts")
 	hostKeyCallback, err := xknownhosts.New(hostKeyPath)
 	if err != nil {
 		return nil

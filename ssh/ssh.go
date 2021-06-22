@@ -18,7 +18,7 @@ type Store struct {
 }
 
 func (store *Store) PreparePrivateKey(KeyFile string) error {
-	keyPath, _ := fs.Clean(KeyFile)
+	keyPath, _ := fs.ResolveHomeDir(KeyFile)
 	if _, ok := store.signerMap[keyPath]; ok {
 		return nil
 	}
