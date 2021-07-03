@@ -3,7 +3,7 @@ package ssh
 import (
 	"net"
 
-	"github.com/whoisnian/glb/fs"
+	"github.com/whoisnian/glb/util/fsutil"
 	xssh "golang.org/x/crypto/ssh"
 	xknownhosts "golang.org/x/crypto/ssh/knownhosts"
 )
@@ -23,7 +23,7 @@ func (emptyPublicKey) Marshal() []byte                      { return nil }
 func (emptyPublicKey) Verify([]byte, *xssh.Signature) error { return nil }
 
 func loadKnownhosts() xssh.HostKeyCallback {
-	hostKeyPath, _ := fs.ResolveHomeDir("~/.ssh/known_hosts")
+	hostKeyPath, _ := fsutil.ResolveHomeDir("~/.ssh/known_hosts")
 	hostKeyCallback, err := xknownhosts.New(hostKeyPath)
 	if err != nil {
 		return nil

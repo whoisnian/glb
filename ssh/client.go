@@ -1,7 +1,7 @@
 package ssh
 
 import (
-	"github.com/whoisnian/glb/fs"
+	"github.com/whoisnian/glb/util/fsutil"
 	xssh "golang.org/x/crypto/ssh"
 )
 
@@ -30,8 +30,8 @@ func (c *Client) Close() {
 	}
 }
 
-func (store *Store) NewClient(addr string, user string, KeyFile string) (*Client, error) {
-	keyPath, _ := fs.ResolveHomeDir(KeyFile)
+func (store *Store) NewClient(addr string, user string, keyFile string) (*Client, error) {
+	keyPath, _ := fsutil.ResolveHomeDir(keyFile)
 	authMethod := xssh.PublicKeys(store.signerMap[keyPath])
 
 	config := &xssh.ClientConfig{

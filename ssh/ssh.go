@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/whoisnian/glb/fs"
+	"github.com/whoisnian/glb/util/fsutil"
 	xssh "golang.org/x/crypto/ssh"
 	xagent "golang.org/x/crypto/ssh/agent"
 	"golang.org/x/term"
@@ -18,7 +18,7 @@ type Store struct {
 }
 
 func (store *Store) PreparePrivateKey(KeyFile string) error {
-	keyPath, _ := fs.ResolveHomeDir(KeyFile)
+	keyPath, _ := fsutil.ResolveHomeDir(KeyFile)
 	if _, ok := store.signerMap[keyPath]; ok {
 		return nil
 	}
