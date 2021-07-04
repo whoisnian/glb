@@ -22,17 +22,28 @@ func (emptyPublicKey) Type() string                         { return "" }
 func (emptyPublicKey) Marshal() []byte                      { return nil }
 func (emptyPublicKey) Verify([]byte, *xssh.Signature) error { return nil }
 
-func loadKnownhosts() xssh.HostKeyCallback {
-	hostKeyPath, _ := fsutil.ResolveHomeDir("~/.ssh/known_hosts")
-	hostKeyCallback, err := xknownhosts.New(hostKeyPath)
-	if err != nil {
-		return nil
-	}
-	return hostKeyCallback
+type Knownhosts struct {
+	hostKeyCheck xssh.HostKeyCallback
 }
 
-func (store *Store) OrderedHostKeyAlgorithms(addr string) []string {
-	if store.hostKeyCheck == nil {
+func (k *Knownhosts) HostKeyCallback() xssh.HostKeyCallback {
+	return k.hostKeyCheck
+}
+
+func (k *Knownhosts) AcceptNewHostKeyCallback(hostname string, remote net.Addr, key xssh.PublicKey) error {
+	if k.hostKeyCheck == nil {
+		return nil
+	}
+
+	err := k.hostKeyCheck(hostname, remote, key)
+	if err, ok := err.(*xknownhosts.KeyError); ok && len(err.Want) == 0 {
+		return nil
+	}
+	return err
+}
+
+func (k *Knownhosts) OrderedHostKeyAlgorithms(addr string) []string {
+	if k.hostKeyCheck == nil {
 		return supportedHostKeyAlgos
 	}
 
@@ -40,7 +51,7 @@ func (store *Store) OrderedHostKeyAlgorithms(addr string) []string {
 	if err != nil {
 		return supportedHostKeyAlgos
 	}
-	err = store.hostKeyCheck(addr, tcpAddr, emptyPublicKey{})
+	err = k.hostKeyCheck(addr, tcpAddr, emptyPublicKey{})
 	if err, ok := err.(*xknownhosts.KeyError); ok && len(err.Want) > 0 {
 		has := make(map[string]bool)
 		for i := range err.Want {
@@ -60,14 +71,11 @@ func (store *Store) OrderedHostKeyAlgorithms(addr string) []string {
 	return supportedHostKeyAlgos
 }
 
-func (store *Store) AcceptNewHostKeyCallback(hostname string, remote net.Addr, key xssh.PublicKey) error {
-	if store.hostKeyCheck == nil {
-		return nil
+func NewKnownhosts() *Knownhosts {
+	hostKeyPath, _ := fsutil.ResolveHomeDir("~/.ssh/known_hosts")
+	hostKeyCallback, err := xknownhosts.New(hostKeyPath)
+	if err != nil {
+		return &Knownhosts{}
 	}
-
-	err := store.hostKeyCheck(hostname, remote, key)
-	if err, ok := err.(*xknownhosts.KeyError); ok && len(err.Want) == 0 {
-		return nil
-	}
-	return err
+	return &Knownhosts{hostKeyCallback}
 }

@@ -9,21 +9,16 @@ import (
 	xagent "golang.org/x/crypto/ssh/agent"
 )
 
-func loadAgent() xagent.ExtendedAgent {
-	authSockConn, err := net.Dial("unix", os.Getenv("SSH_AUTH_SOCK"))
-	if err != nil {
-		return nil
-	}
-
-	return xagent.NewClient(authSockConn)
+type Agent struct {
+	agent xagent.ExtendedAgent
 }
 
-func (store *Store) getSignerFromAgent(key xssh.PublicKey) xssh.Signer {
-	if store.agent == nil {
+func (a *Agent) GetSigner(key xssh.PublicKey) xssh.Signer {
+	if a.agent == nil {
 		return nil
 	}
 
-	signers, err := store.agent.Signers()
+	signers, err := a.agent.Signers()
 	if err != nil {
 		return nil
 	}
@@ -37,13 +32,21 @@ func (store *Store) getSignerFromAgent(key xssh.PublicKey) xssh.Signer {
 	return nil
 }
 
-func (store *Store) addKeyToAgent(key interface{}, comment string) {
-	if store.agent == nil {
+func (a *Agent) AddKey(key interface{}, comment string) {
+	if a.agent == nil {
 		return
 	}
 
-	store.agent.Add(xagent.AddedKey{
+	a.agent.Add(xagent.AddedKey{
 		PrivateKey: key,
 		Comment:    comment,
 	})
+}
+
+func NewAgent() *Agent {
+	authSockConn, err := net.Dial("unix", os.Getenv("SSH_AUTH_SOCK"))
+	if err != nil {
+		return &Agent{}
+	}
+	return &Agent{xagent.NewClient(authSockConn)}
 }
