@@ -6,6 +6,7 @@ import (
 	"strings"
 )
 
+// ResolveHomeDir resolve prefix '~' in path with environment variable.
 func ResolveHomeDir(rawPath string) (string, error) {
 	if strings.HasPrefix(rawPath, "~/") {
 		homeDir, err := os.UserHomeDir()

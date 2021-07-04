@@ -4,6 +4,7 @@ package netutil
 import "net"
 
 // GetOutBoundIP get preferred outbound ip of current process.
+//
 // https://stackoverflow.com/a/37382208
 func GetOutBoundIP() (net.IP, error) {
 	conn, err := net.Dial("udp", "8.8.8.8:80")

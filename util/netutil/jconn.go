@@ -14,6 +14,7 @@ type JConn struct {
 	jDec    *json.Decoder
 }
 
+// Close only close gzip.Reader/gzip.Writer. Source net.Conn should be closed manually.
 func (jconn *JConn) Close() {
 	jconn.gReader.Close()
 	jconn.gWriter.Close()

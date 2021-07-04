@@ -52,13 +52,14 @@ func launch(name string) {
 	}
 }
 
+// Launch start launcher as daemon's parent process.
 func Launch(name string) {
 	cmd := exec.Command(os.Args[0])
 	cmd.Env = append(os.Environ(), launcherEnv+"="+name, launcherIng+"=true")
 	cmd.Run()
 }
 
-// Done should be invoked in handler to kill its launcher.
+// Done should be invoked in daemon to kill its launcher.
 func Done() (err error) {
 	var p *os.Process
 	if p, err = os.FindProcess(os.Getppid()); err == nil {
