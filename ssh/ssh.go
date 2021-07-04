@@ -7,14 +7,13 @@ import (
 
 	"github.com/whoisnian/glb/util/fsutil"
 	xssh "golang.org/x/crypto/ssh"
-	xagent "golang.org/x/crypto/ssh/agent"
 	"golang.org/x/term"
 )
 
 type Store struct {
-	agent        xagent.ExtendedAgent
-	hostKeyCheck xssh.HostKeyCallback
-	signerMap    map[string]xssh.Signer
+	agent      *Agent
+	knownhosts *Knownhosts
+	signerMap  map[string]xssh.Signer
 }
 
 func (store *Store) PreparePrivateKey(KeyFile string) error {
@@ -35,7 +34,7 @@ func (store *Store) PreparePrivateKey(KeyFile string) error {
 	}
 
 	if partial, ok := err.(*xssh.PassphraseMissingError); ok {
-		if signer = store.getSignerFromAgent(partial.PublicKey); signer != nil {
+		if signer = store.agent.GetSigner(partial.PublicKey); signer != nil {
 			store.signerMap[keyPath] = signer
 			return nil
 		} else {
@@ -43,7 +42,7 @@ func (store *Store) PreparePrivateKey(KeyFile string) error {
 			if password, err := term.ReadPassword(int(os.Stdin.Fd())); err == nil {
 				if privateKey, err := xssh.ParseRawPrivateKeyWithPassphrase(keyBytes, password); err == nil {
 					if signer, err = xssh.NewSignerFromKey(privateKey); err == nil {
-						store.addKeyToAgent(privateKey, keyPath)
+						store.agent.AddKey(privateKey, keyPath)
 						store.signerMap[keyPath] = signer
 						return nil
 					}
@@ -56,8 +55,8 @@ func (store *Store) PreparePrivateKey(KeyFile string) error {
 
 func NewStore() *Store {
 	return &Store{
-		loadAgent(),
-		loadKnownhosts(),
+		NewAgent(),
+		NewKnownhosts(),
 		make(map[string]xssh.Signer),
 	}
 }

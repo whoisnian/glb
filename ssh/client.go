@@ -9,19 +9,19 @@ type Client struct {
 	client *xssh.Client
 }
 
-func (c *Client) Run(cmd string) ([]byte, error) {
+func (c *Client) Run(cmd string) (string, error) {
 	session, err := c.client.NewSession()
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	defer session.Close()
 
 	out, err := session.Output(cmd)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
-	return out, nil
+	return string(out), nil
 }
 
 func (c *Client) Close() {
@@ -37,8 +37,8 @@ func (store *Store) NewClient(addr string, user string, keyFile string) (*Client
 	config := &xssh.ClientConfig{
 		User:              user,
 		Auth:              []xssh.AuthMethod{authMethod},
-		HostKeyCallback:   store.AcceptNewHostKeyCallback,
-		HostKeyAlgorithms: store.OrderedHostKeyAlgorithms(addr),
+		HostKeyCallback:   store.knownhosts.AcceptNewHostKeyCallback,
+		HostKeyAlgorithms: store.knownhosts.OrderedHostKeyAlgorithms(addr),
 	}
 	client, err := xssh.Dial("tcp", addr, config)
 	if err != nil {

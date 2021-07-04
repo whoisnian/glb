@@ -35,7 +35,7 @@ func Run() bool {
 
 func launch(name string) {
 	cmd := exec.Command(os.Args[0])
-	cmd.Env = []string{launcherEnv + "=" + name, launcherIng + "=false"}
+	cmd.Env = append(os.Environ(), launcherEnv+"="+name, launcherIng+"=false")
 	cmd.Start()
 
 	interrupt := make(chan os.Signal, 1)
@@ -45,7 +45,7 @@ func launch(name string) {
 
 func Launch(name string) {
 	cmd := exec.Command(os.Args[0])
-	cmd.Env = []string{launcherEnv + "=" + name, launcherIng + "=true"}
+	cmd.Env = append(os.Environ(), launcherEnv+"="+name, launcherIng+"=true")
 	cmd.Run()
 }
 
