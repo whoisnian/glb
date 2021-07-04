@@ -16,11 +16,11 @@ var sshClientMap *sync.Map
 
 func runKeeperDaemon() {
 	listener, err := net.Listen("unix", socketPath)
+	daemon.Done()
 	if err != nil {
 		logger.Panic(err)
 	}
 	defer listener.Close()
-	daemon.Done()
 
 	sshClientMap = new(sync.Map)
 	wg := new(sync.WaitGroup)

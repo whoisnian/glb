@@ -38,9 +38,18 @@ func launch(name string) {
 	cmd.Env = append(os.Environ(), launcherEnv+"="+name, launcherIng+"=false")
 	cmd.Start()
 
+	finished := make(chan struct{})
+	go func() {
+		cmd.Wait()
+		close(finished)
+	}()
+
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
-	<-interrupt
+	select {
+	case <-finished:
+	case <-interrupt:
+	}
 }
 
 func Launch(name string) {
