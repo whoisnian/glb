@@ -47,5 +47,18 @@ func (store *Store) NewClient(addr string, user string, keyFile string) (*Client
 	if err != nil {
 		return nil, err
 	}
+
+	// ServerAliveInterval 10
+	go func() {
+		ticker := time.NewTicker(10 * time.Second)
+		defer ticker.Stop()
+		for range ticker.C {
+			_, _, err := client.Conn.SendRequest("keepalive@golang.org", true, nil)
+			if err != nil {
+				return
+			}
+		}
+	}()
+
 	return &Client{client}, nil
 }

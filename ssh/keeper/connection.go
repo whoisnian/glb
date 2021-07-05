@@ -102,6 +102,20 @@ func (c *keeperConn) createClient(data json.RawMessage) keeperRes {
 	if err != nil {
 		return keeperRes{401, err.Error()}
 	}
+
+	// ServerAliveInterval 10
+	go func() {
+		defer sshClientMap.Delete(d.tag())
+		ticker := time.NewTicker(10 * time.Second)
+		defer ticker.Stop()
+		for range ticker.C {
+			_, _, err := c.sshClient.Conn.SendRequest("keepalive@golang.org", true, nil)
+			if err != nil {
+				return
+			}
+		}
+	}()
+
 	sshClientMap.Store(d.tag(), c.sshClient)
 	return keeperRes{200, "create new sshClient"}
 }
