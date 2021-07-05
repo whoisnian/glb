@@ -3,7 +3,10 @@ package keeper
 import (
 	"errors"
 	"net"
+	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/whoisnian/glb/daemon"
@@ -28,6 +31,13 @@ func runKeeperDaemon() {
 		wg.Wait()
 		listener.Close()
 	})
+
+	go func() {
+		interrupt := make(chan os.Signal, 1)
+		signal.Notify(interrupt, syscall.SIGINT, syscall.SIGTERM)
+		<-interrupt
+		listener.Close()
+	}()
 
 	agent := ssh.NewAgent()
 	knownhosts := ssh.NewKnownhosts()
