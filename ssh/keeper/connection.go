@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net"
 	"strings"
+	"time"
 
 	"github.com/whoisnian/glb/ssh"
 	"github.com/whoisnian/glb/util/netutil"
@@ -95,6 +96,7 @@ func (c *keeperConn) createClient(data json.RawMessage) keeperRes {
 		Auth:              []xssh.AuthMethod{authMethod},
 		HostKeyCallback:   c.knownhosts.AcceptNewHostKeyCallback,
 		HostKeyAlgorithms: c.knownhosts.OrderedHostKeyAlgorithms(d.Addr),
+		Timeout:           10 * time.Second,
 	}
 	c.sshClient, err = xssh.Dial("tcp", d.Addr, config)
 	if err != nil {

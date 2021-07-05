@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net"
 	"syscall"
+	"time"
 
 	"github.com/whoisnian/glb/daemon"
 	"github.com/whoisnian/glb/util/fsutil"
@@ -39,12 +40,12 @@ func (c *Client) Run(cmd string) (string, error) {
 }
 
 func (k *Keeper) NewClient(addr string, user string, keyFile string) (*Client, error) {
-	conn, err := net.Dial("unix", socketPath)
+	conn, err := net.DialTimeout("unix", socketPath, 10*time.Second)
 	if err != nil {
 		if errors.Is(err, syscall.ENOENT) {
 			daemon.Launch(daemonName)
 
-			conn, err = net.Dial("unix", socketPath)
+			conn, err = net.DialTimeout("unix", socketPath, 10*time.Second)
 			if err != nil {
 				return nil, err
 			}

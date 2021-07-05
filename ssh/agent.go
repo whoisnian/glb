@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"net"
 	"os"
+	"time"
 
 	xssh "golang.org/x/crypto/ssh"
 	xagent "golang.org/x/crypto/ssh/agent"
@@ -44,7 +45,7 @@ func (a *Agent) AddKey(key interface{}, comment string) {
 }
 
 func NewAgent() *Agent {
-	authSockConn, err := net.Dial("unix", os.Getenv("SSH_AUTH_SOCK"))
+	authSockConn, err := net.DialTimeout("unix", os.Getenv("SSH_AUTH_SOCK"), 10*time.Second)
 	if err != nil {
 		return &Agent{}
 	}

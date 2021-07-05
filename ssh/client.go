@@ -1,6 +1,8 @@
 package ssh
 
 import (
+	"time"
+
 	"github.com/whoisnian/glb/util/fsutil"
 	xssh "golang.org/x/crypto/ssh"
 )
@@ -39,6 +41,7 @@ func (store *Store) NewClient(addr string, user string, keyFile string) (*Client
 		Auth:              []xssh.AuthMethod{authMethod},
 		HostKeyCallback:   store.knownhosts.AcceptNewHostKeyCallback,
 		HostKeyAlgorithms: store.knownhosts.OrderedHostKeyAlgorithms(addr),
+		Timeout:           10 * time.Second,
 	}
 	client, err := xssh.Dial("tcp", addr, config)
 	if err != nil {
