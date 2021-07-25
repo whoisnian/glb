@@ -1,20 +1,22 @@
 package httpd_test
 
 import (
+	"net/http"
+
 	"github.com/whoisnian/glb/httpd"
 )
 
-func pingHandler(store httpd.Store) {
+func pingHandler(store *httpd.Store) {
 	store.Respond200([]byte("pong"))
 }
 
-func sayHandler(store httpd.Store) {
+func sayHandler(store *httpd.Store) {
 	name := store.RouteParam("name")
 	msg := store.RouteParam("msg")
 	store.Respond200([]byte(name + " say: " + msg))
 }
 
-func anyHandler(store httpd.Store) {
+func anyHandler(store *httpd.Store) {
 	path := store.RouteParamAny()
 	method := store.R.Method
 	store.RespondJson(map[string]string{
@@ -24,11 +26,14 @@ func anyHandler(store httpd.Store) {
 }
 
 func Example() {
-	httpd.Handle("/test/ping", "GET", pingHandler)
-	httpd.Handle("/test/say/:name/:msg", "POST", sayHandler)
-	httpd.Handle("/test/any/*", "*", anyHandler)
+	mux := httpd.NewMux()
+	mux.Handle("/test/ping", "GET", pingHandler)
+	mux.Handle("/test/say/:name/:msg", "POST", sayHandler)
+	mux.Handle("/test/any/*", "*", anyHandler)
 
-	httpd.Start("127.0.0.1:8080")
+	if err := http.ListenAndServe(":8080", mux); err != nil {
+		panic(err)
+	}
 
 	// Output examples:
 	// curl http://127.0.0.1:8080/test/ping

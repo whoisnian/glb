@@ -60,10 +60,6 @@ func Debug(v ...interface{}) {
 	lout.Output(2, tagD+" "+fmt.Sprint(v...)+"\n")
 }
 
-func Req(v ...interface{}) {
-	lout.Output(2, tagR+" "+fmt.Sprint(v...)+"\n")
-}
-
 func Panic(v ...interface{}) {
 	msg := fmt.Sprint(v...)
 	lerr.Output(2, tagE+" "+msg+"\n")

@@ -2,14 +2,12 @@
 package httpd
 
 import (
+	"errors"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
 	"sync"
-	"time"
 
-	"github.com/whoisnian/glb/logger"
 	"github.com/whoisnian/glb/util/strutil"
 )
 
@@ -30,7 +28,7 @@ var methodList = map[string]string{
 }
 
 type nodeData struct {
-	handler       Handler
+	handler       HandlerFunc
 	paramNameList []string
 }
 
@@ -75,7 +73,7 @@ func parseRoute(node *routeNode, path string, method string) (*routeNode, []stri
 		} else if fragments[i][0] == ':' {
 			paramName := fragments[i][1:]
 			if paramName == "" || strutil.SliceContain(paramNameList, paramName) {
-				logger.Fatal("Invalid fragment '", fragments[i], "' in routePath: '", path, "'")
+				panic(errors.New("Invalid fragment '" + fragments[i] + "' in routePath: '" + path + "'"))
 			}
 			paramNameList = append(paramNameList, paramName)
 			node = node.nextNodeOrNew(routeParam)
@@ -86,10 +84,10 @@ func parseRoute(node *routeNode, path string, method string) (*routeNode, []stri
 
 	methodTag, ok := methodList[method]
 	if !ok {
-		logger.Fatal("Invalid method '", method, "' for routePath: '", path, "'")
+		panic(errors.New("Invalid method '" + method + "' for routePath: '" + path + "'"))
 	}
 	if _, ok = node.next[methodTag]; ok {
-		logger.Fatal("Duplicate method '", method, "' for routePath: '", path, "'")
+		panic(errors.New("Duplicate method '" + method + "' for routePath: '" + path + "'"))
 	}
 	return node.nextNodeOrNew(methodTag), paramNameList
 }
@@ -105,7 +103,7 @@ func findRoute(node *routeNode, path string, method string) (*routeNode, []strin
 		} else if res, ok := node.next[routeParam]; ok {
 			value, err := url.PathUnescape(fragments[i])
 			if err != nil {
-				logger.Error("Invalid fragment '", fragments[i], "' in routePath: '", path, "'")
+				// logger.Error("Invalid fragment '", fragments[i], "' in routePath: '", path, "'")
 				return nil, nil
 			}
 			paramValueList = append(paramValueList, value)
@@ -113,7 +111,7 @@ func findRoute(node *routeNode, path string, method string) (*routeNode, []strin
 		} else if res, ok := node.next[routeParamAny]; ok {
 			value, err := url.PathUnescape(strings.Join(fragments[i:], "/"))
 			if err != nil {
-				logger.Error("Invalid fragment '", fragments[i], "' in routePath: '", path, "'")
+				// logger.Error("Invalid fragment '", fragments[i], "' in routePath: '", path, "'")
 				return nil, nil
 			}
 			paramValueList = append(paramValueList, value)
@@ -126,28 +124,22 @@ func findRoute(node *routeNode, path string, method string) (*routeNode, []strin
 	return node.methodNodeOrNil(method), paramValueList
 }
 
-type serveMux struct {
+type Mux struct {
 	mu   sync.RWMutex
 	root *routeNode
 }
 
-func (mux *serveMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	start := time.Now()
-	store := Store{&statusResponseWriter{w, http.StatusOK}, r, make(map[string]string)}
+func NewMux() *Mux {
+	return &Mux{root: new(routeNode)}
+}
+
+func (mux *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	store := &Store{w, r, make(map[string]string)}
 
 	defer func() {
 		if err := recover(); err != nil {
 			store.Error500("Internal Server Error")
 		}
-
-		logger.Req(
-			r.RemoteAddr[0:strings.IndexByte(r.RemoteAddr, ':')], " [",
-			store.W.status, "] ",
-			r.Method, " ",
-			strconv.Quote(r.URL.Path), " ",
-			r.UserAgent(), " ",
-			time.Since(start).Milliseconds(),
-		)
 	}()
 
 	node, paramValueList := findRoute(mux.root, r.URL.EscapedPath(), r.Method)
@@ -163,25 +155,11 @@ func (mux *serveMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	node.data.handler(store)
 }
 
-var mux *serveMux
-
-func init() {
-	mux = new(serveMux)
-	mux.root = new(routeNode)
-}
-
 // Handle registers the handler for the given routePath and method.
-func Handle(path string, method string, handler Handler) {
+func (mux *Mux) Handle(path string, method string, handler HandlerFunc) {
 	mux.mu.Lock()
 	defer mux.mu.Unlock()
 
 	node, paramNameList := parseRoute(mux.root, path, method)
 	node.data = &nodeData{handler, paramNameList}
-}
-
-// Start listens on the addr and then creates goroutine to handle each request.
-func Start(addr string) {
-	if err := http.ListenAndServe(addr, mux); err != nil {
-		logger.Fatal(err)
-	}
 }
