@@ -92,11 +92,14 @@ func parseRoute(node *routeNode, path string, method string) (*routeNode, []stri
 	return node.nextNodeOrNew(methodTag), paramNameList
 }
 
+// about trailing slash:
+//   use `/foo/bar` to match `/foo/bar`
+//   use `/foo/bar/*` to match `/foo/bar/`
 func findRoute(node *routeNode, path string, method string) (*routeNode, []string) {
 	var paramValueList []string
 	fragments := strings.Split(path, "/")
 	for i := range fragments {
-		if len(fragments[i]) < 1 {
+		if len(fragments[i]) < 1 && i < len(fragments)-1 {
 			continue
 		} else if res, ok := node.next[fragments[i]]; ok {
 			node = res

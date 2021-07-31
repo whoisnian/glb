@@ -41,7 +41,7 @@ func (lw *loggerResponseWriter) Flush() {
 //   }
 func Req(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		lw := &loggerResponseWriter{w, 0, time.Now()}
+		lw := &loggerResponseWriter{w, 200, time.Now()}
 		handler.ServeHTTP(lw, r)
 		lout.Output(2, tagR+" "+fmt.Sprint(
 			r.RemoteAddr[0:strings.IndexByte(r.RemoteAddr, ':')], " [",
