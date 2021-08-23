@@ -9,16 +9,11 @@ import (
 	"github.com/whoisnian/glb/ansi"
 )
 
+const labelI, labelW, labelE, labelD, labelR string = "[I]", "[W]", "[E]", "[D]", "[R]"
+
 var debug bool = false
 var lout, lerr *log.Logger
-
-var (
-	tagI string = "[I]"
-	tagW string = "[W]"
-	tagE string = "[E]"
-	tagD string = "[D]"
-	tagR string = "[R]"
-)
+var tagI, tagW, tagE, tagD, tagR string = labelI, labelW, labelE, labelD, labelR
 
 func init() {
 	lout = log.New(os.Stdout, "", log.LstdFlags)
@@ -27,12 +22,18 @@ func init() {
 
 func SetDebug(value bool) {
 	debug = value
-	if debug {
-		tagI = ansi.Green + tagI + ansi.Reset
-		tagW = ansi.Yellow + tagW + ansi.Reset
-		tagE = ansi.Red + tagE + ansi.Reset
-		tagD = ansi.Magenta + tagD + ansi.Reset
-		tagR = ansi.Blue + tagR + ansi.Reset
+	SetColorful(debug)
+}
+
+func SetColorful(value bool) {
+	if value {
+		tagI = ansi.Green + labelI + ansi.Reset
+		tagW = ansi.Yellow + labelW + ansi.Reset
+		tagE = ansi.Red + labelE + ansi.Reset
+		tagD = ansi.Magenta + labelD + ansi.Reset
+		tagR = ansi.Blue + labelR + ansi.Reset
+	} else {
+		tagI, tagW, tagE, tagD, tagR = labelI, labelW, labelE, labelD, labelR
 	}
 }
 
