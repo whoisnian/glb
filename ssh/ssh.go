@@ -49,6 +49,13 @@ func (store *Store) PreparePrivateKey(KeyFile string) error {
 				}
 			}
 		}
+	} else {
+		if pubKey, _, _, _, err := xssh.ParseAuthorizedKey(keyBytes); err == nil {
+			if signer := store.agent.GetSigner(pubKey); signer != nil {
+				store.signerMap[keyPath] = signer
+				return nil
+			}
+		}
 	}
 	return err
 }

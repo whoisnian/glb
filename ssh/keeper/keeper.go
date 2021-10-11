@@ -63,6 +63,13 @@ func (k *Keeper) PreparePrivateKey(KeyFile string) error {
 				}
 			}
 		}
+	} else {
+		if pubKey, _, _, _, err := xssh.ParseAuthorizedKey(keyBytes); err == nil {
+			if signer := k.agent.GetSigner(pubKey); signer != nil {
+				k.keyMap[keyPath] = pubKey.Marshal()
+				return nil
+			}
+		}
 	}
 	return err
 }
