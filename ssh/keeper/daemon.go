@@ -56,14 +56,23 @@ func runKeeperDaemon() {
 		go func() {
 			defer wg.Done()
 
+			jconn, err := netutil.NewJConn(conn)
+			if err != nil {
+				logger.Error(err)
+				conn.Close()
+				return
+			}
+
 			c := &keeperConn{
 				conn:       conn,
-				jconn:      netutil.NewJConn(conn),
+				jconn:      jconn,
 				agent:      agent,
 				knownhosts: knownhosts,
 			}
-			c.handleMsg()
-			c.close()
+			defer c.close()
+			if err = c.handleMsg(); err != nil {
+				logger.Error(err)
+			}
 		}()
 	}
 }

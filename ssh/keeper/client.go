@@ -54,7 +54,10 @@ func (k *Keeper) NewClient(addr string, user string, keyFile string) (*Client, e
 		}
 	}
 
-	client := &Client{conn, netutil.NewJConn(conn)}
+	client := &Client{conn: conn}
+	if client.jconn, err = netutil.NewJConn(conn); err != nil {
+		return nil, err
+	}
 	keyPath, _ := fsutil.ResolveHomeDir(keyFile)
 	key := k.keyMap[keyPath]
 

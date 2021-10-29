@@ -2,6 +2,7 @@ package keeper
 
 import (
 	"encoding/json"
+	"io"
 	"net"
 	"strings"
 	"time"
@@ -34,10 +35,17 @@ type keeperRes struct {
 	Result string
 }
 
-func (c *keeperConn) handleMsg() {
+func (c *keeperConn) handleMsg() (err error) {
 	msg := new(keeperMsg)
 	var res keeperRes
-	for c.jconn.Accept(msg) {
+	for {
+		if err = c.jconn.Accept(msg); err != nil {
+			if err == io.EOF {
+				return nil
+			}
+			return err
+		}
+
 		switch msg.Action {
 		case "create-client":
 			res = c.createClient(msg.Data)
