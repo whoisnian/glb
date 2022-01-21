@@ -1,9 +1,13 @@
 package ssh
 
 import (
+	"bytes"
+	"errors"
+	"io"
 	"time"
 
 	"github.com/whoisnian/glb/util/fsutil"
+	"github.com/whoisnian/glb/util/strutil"
 	xssh "golang.org/x/crypto/ssh"
 )
 
@@ -11,19 +15,47 @@ type Client struct {
 	client *xssh.Client
 }
 
-func (c *Client) Run(cmd string) (string, error) {
+func (c *Client) run(cmd string, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
 	session, err := c.client.NewSession()
 	if err != nil {
-		return "", err
+		return err
 	}
 	defer session.Close()
 
-	out, err := session.Output(cmd)
-	if err != nil {
-		return "", err
-	}
+	session.Stdin = stdin
+	session.Stdout = stdout
+	session.Stderr = stderr
 
-	return string(out), nil
+	return session.Run(cmd)
+}
+
+func (c *Client) Run(cmd string) (string, error) {
+	var outbuf, errbuf bytes.Buffer
+	err := c.run(cmd, nil, &outbuf, &errbuf)
+	if errbuf.Len() > 0 {
+		return outbuf.String(), errors.New(errbuf.String())
+	}
+	return outbuf.String(), err
+}
+
+func (c *Client) GetFileWriteTo(remoteFilePath string, writer io.Writer) error {
+	cmd := "cat " + strutil.ShellEscape(remoteFilePath)
+	var errbuf bytes.Buffer
+	err := c.run(cmd, nil, writer, &errbuf)
+	if errbuf.Len() > 0 {
+		return errors.New(errbuf.String())
+	}
+	return err
+}
+
+func (c *Client) PutFileReadFrom(remoteFilePath string, reader io.Reader) error {
+	cmd := "tee " + strutil.ShellEscape(remoteFilePath)
+	var errbuf bytes.Buffer
+	err := c.run(cmd, reader, nil, &errbuf)
+	if errbuf.Len() > 0 {
+		return errors.New(errbuf.String())
+	}
+	return err
 }
 
 func (c *Client) Close() {
