@@ -1,6 +1,7 @@
 package keeper
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"net"
@@ -136,15 +137,27 @@ func (c *keeperConn) runCommand(data json.RawMessage) keeperRes {
 	var d runCommandData
 	json.Unmarshal(data, &d)
 
+	var outbuf, errbuf bytes.Buffer
+	err := c.run(d.Cmd, nil, &outbuf, &errbuf)
+	if errbuf.Len() > 0 {
+		return keeperRes{500, errbuf.String()}
+	} else if err != nil {
+		return keeperRes{500, err.Error()}
+	}
+
+	return keeperRes{200, outbuf.String()}
+}
+
+func (c *keeperConn) run(cmd string, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
 	session, err := c.sshClient.NewSession()
 	if err != nil {
-		return keeperRes{500, err.Error()}
+		return err
 	}
 	defer session.Close()
 
-	out, err := session.Output(d.Cmd)
-	if err != nil {
-		return keeperRes{500, err.Error()}
-	}
-	return keeperRes{200, string(out)}
+	session.Stdin = stdin
+	session.Stdout = stdout
+	session.Stderr = stderr
+
+	return session.Run(cmd)
 }

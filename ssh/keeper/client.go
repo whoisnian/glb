@@ -39,6 +39,28 @@ func (c *Client) Run(cmd string) (string, error) {
 	}
 }
 
+// func (c *Client) GetFileWriteTo(remoteFilePath string, writer io.Writer) error {
+// 	cmd := "cat " + pathEscapeExceptTilde(remoteFilePath)
+
+// 	var errbuf bytes.Buffer
+// 	err := c.run(cmd, nil, writer, &errbuf)
+// 	if errbuf.Len() > 0 {
+// 		return errors.New(errbuf.String())
+// 	}
+// 	return err
+// }
+
+// func (c *Client) PutFileReadFrom(remoteFilePath string, reader io.Reader) error {
+// 	cmd := "tee " + pathEscapeExceptTilde(remoteFilePath)
+
+// 	var errbuf bytes.Buffer
+// 	err := c.run(cmd, reader, nil, &errbuf)
+// 	if errbuf.Len() > 0 {
+// 		return errors.New(errbuf.String())
+// 	}
+// 	return err
+// }
+
 func (k *Keeper) NewClient(addr string, user string, keyFile string) (*Client, error) {
 	conn, err := net.DialTimeout("unix", socketPath, 10*time.Second)
 	if err != nil {
