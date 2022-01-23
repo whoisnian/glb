@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/whoisnian/glb/util/fsutil"
@@ -38,8 +39,16 @@ func (c *Client) Run(cmd string) (string, error) {
 	return outbuf.String(), err
 }
 
+func pathEscapeExceptTilde(rawPath string) string {
+	if strings.HasPrefix(rawPath, "~/") {
+		return "~/" + strutil.ShellEscape(rawPath[2:])
+	}
+	return strutil.ShellEscape(rawPath)
+}
+
 func (c *Client) GetFileWriteTo(remoteFilePath string, writer io.Writer) error {
-	cmd := "cat " + strutil.ShellEscape(remoteFilePath)
+	cmd := "cat " + pathEscapeExceptTilde(remoteFilePath)
+
 	var errbuf bytes.Buffer
 	err := c.run(cmd, nil, writer, &errbuf)
 	if errbuf.Len() > 0 {
@@ -49,7 +58,8 @@ func (c *Client) GetFileWriteTo(remoteFilePath string, writer io.Writer) error {
 }
 
 func (c *Client) PutFileReadFrom(remoteFilePath string, reader io.Reader) error {
-	cmd := "tee " + strutil.ShellEscape(remoteFilePath)
+	cmd := "tee " + pathEscapeExceptTilde(remoteFilePath)
+
 	var errbuf bytes.Buffer
 	err := c.run(cmd, reader, nil, &errbuf)
 	if errbuf.Len() > 0 {
