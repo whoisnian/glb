@@ -34,6 +34,7 @@ type keeperMsg struct {
 type keeperRes struct {
 	Status int64
 	Result string
+	Data   json.RawMessage
 }
 
 func (c *keeperConn) handleMsg() (err error) {
@@ -53,7 +54,7 @@ func (c *keeperConn) handleMsg() (err error) {
 		case "run-command":
 			res = c.runCommand(msg.Data)
 		default:
-			res = keeperRes{404, "unknown msg.Action"}
+			res = keeperRes{404, "unknown msg.Action", nil}
 		}
 		c.jconn.Send(res)
 	}
@@ -77,7 +78,7 @@ func (c *keeperConn) createClient(data json.RawMessage) keeperRes {
 
 	if sshClient, ok := sshClientMap.Load(d.tag()); ok {
 		c.sshClient = sshClient.(*xssh.Client)
-		return keeperRes{200, "reuse existing sshClient"}
+		return keeperRes{200, "reuse existing sshClient", nil}
 	}
 
 	var signer xssh.Signer
@@ -86,16 +87,16 @@ func (c *keeperConn) createClient(data json.RawMessage) keeperRes {
 	if d.KeyType == "public-key" {
 		publicKey, err := xssh.ParsePublicKey(*key.(*[]byte))
 		if err != nil {
-			return keeperRes{401, err.Error()}
+			return keeperRes{401, err.Error(), nil}
 		}
 		signer = c.agent.GetSigner(publicKey)
 		if signer == nil {
-			return keeperRes{401, d.KeyFile + " is passphrase protected"}
+			return keeperRes{401, d.KeyFile + " is passphrase protected", nil}
 		}
 	} else {
 		signer, err = xssh.NewSignerFromKey(key)
 		if err != nil {
-			return keeperRes{401, err.Error()}
+			return keeperRes{401, err.Error(), nil}
 		}
 	}
 	authMethod := xssh.PublicKeys(signer)
@@ -109,7 +110,7 @@ func (c *keeperConn) createClient(data json.RawMessage) keeperRes {
 	}
 	c.sshClient, err = xssh.Dial("tcp", d.Addr, config)
 	if err != nil {
-		return keeperRes{401, err.Error()}
+		return keeperRes{401, err.Error(), nil}
 	}
 
 	// ServerAliveInterval 10
@@ -126,7 +127,7 @@ func (c *keeperConn) createClient(data json.RawMessage) keeperRes {
 	}()
 
 	sshClientMap.Store(d.tag(), c.sshClient)
-	return keeperRes{200, "create new sshClient"}
+	return keeperRes{200, "create new sshClient", nil}
 }
 
 type runCommandData struct {
@@ -140,12 +141,12 @@ func (c *keeperConn) runCommand(data json.RawMessage) keeperRes {
 	var outbuf, errbuf bytes.Buffer
 	err := c.run(d.Cmd, nil, &outbuf, &errbuf)
 	if errbuf.Len() > 0 {
-		return keeperRes{500, errbuf.String()}
+		return keeperRes{500, errbuf.String(), nil}
 	} else if err != nil {
-		return keeperRes{500, err.Error()}
+		return keeperRes{500, err.Error(), nil}
 	}
 
-	return keeperRes{200, outbuf.String()}
+	return keeperRes{200, outbuf.String(), nil}
 }
 
 func (c *keeperConn) run(cmd string, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
