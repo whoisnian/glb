@@ -1,6 +1,7 @@
 package keeper
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"net"
@@ -33,6 +34,7 @@ type keeperMsg struct {
 type keeperRes struct {
 	Status int64
 	Result string
+	Data   json.RawMessage
 }
 
 func (c *keeperConn) handleMsg() (err error) {
@@ -52,7 +54,7 @@ func (c *keeperConn) handleMsg() (err error) {
 		case "run-command":
 			res = c.runCommand(msg.Data)
 		default:
-			res = keeperRes{404, "unknown msg.Action"}
+			res = keeperRes{404, "unknown msg.Action", nil}
 		}
 		c.jconn.Send(res)
 	}
@@ -72,29 +74,31 @@ func (d createClientData) tag() string {
 
 func (c *keeperConn) createClient(data json.RawMessage) keeperRes {
 	var d createClientData
-	json.Unmarshal(data, &d)
+	err := json.Unmarshal(data, &d)
+	if err != nil {
+		return keeperRes{500, err.Error(), nil}
+	}
 
 	if sshClient, ok := sshClientMap.Load(d.tag()); ok {
 		c.sshClient = sshClient.(*xssh.Client)
-		return keeperRes{200, "reuse existing sshClient"}
+		return keeperRes{200, "reuse existing sshClient", nil}
 	}
 
 	var signer xssh.Signer
-	var err error
 	key := unmarshalKey(d.KeyType, d.KeyData)
 	if d.KeyType == "public-key" {
 		publicKey, err := xssh.ParsePublicKey(*key.(*[]byte))
 		if err != nil {
-			return keeperRes{401, err.Error()}
+			return keeperRes{401, err.Error(), nil}
 		}
 		signer = c.agent.GetSigner(publicKey)
 		if signer == nil {
-			return keeperRes{401, d.KeyFile + " is passphrase protected"}
+			return keeperRes{401, d.KeyFile + " is passphrase protected", nil}
 		}
 	} else {
 		signer, err = xssh.NewSignerFromKey(key)
 		if err != nil {
-			return keeperRes{401, err.Error()}
+			return keeperRes{401, err.Error(), nil}
 		}
 	}
 	authMethod := xssh.PublicKeys(signer)
@@ -108,7 +112,7 @@ func (c *keeperConn) createClient(data json.RawMessage) keeperRes {
 	}
 	c.sshClient, err = xssh.Dial("tcp", d.Addr, config)
 	if err != nil {
-		return keeperRes{401, err.Error()}
+		return keeperRes{401, err.Error(), nil}
 	}
 
 	// ServerAliveInterval 10
@@ -125,26 +129,51 @@ func (c *keeperConn) createClient(data json.RawMessage) keeperRes {
 	}()
 
 	sshClientMap.Store(d.tag(), c.sshClient)
-	return keeperRes{200, "create new sshClient"}
+	return keeperRes{200, "create new sshClient", nil}
 }
 
 type runCommandData struct {
-	Cmd string
+	Cmd   string
+	Stdin []byte
+}
+
+type runCommandRes struct {
+	Stdout []byte
+	Stderr []byte
 }
 
 func (c *keeperConn) runCommand(data json.RawMessage) keeperRes {
 	var d runCommandData
-	json.Unmarshal(data, &d)
+	err := json.Unmarshal(data, &d)
+	if err != nil {
+		return keeperRes{500, err.Error(), nil}
+	}
 
+	var outbuf, errbuf bytes.Buffer
+	if d.Stdin != nil {
+		err = c.run(d.Cmd, bytes.NewReader(d.Stdin), &outbuf, &errbuf)
+	} else {
+		err = c.run(d.Cmd, nil, &outbuf, &errbuf)
+	}
+	res, mErr := json.Marshal(runCommandRes{outbuf.Bytes(), errbuf.Bytes()})
+	if mErr != nil {
+		return keeperRes{500, mErr.Error(), nil}
+	} else if err != nil {
+		return keeperRes{400, err.Error(), res}
+	}
+	return keeperRes{200, "command return ok", res}
+}
+
+func (c *keeperConn) run(cmd string, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
 	session, err := c.sshClient.NewSession()
 	if err != nil {
-		return keeperRes{500, err.Error()}
+		return err
 	}
 	defer session.Close()
 
-	out, err := session.Output(d.Cmd)
-	if err != nil {
-		return keeperRes{500, err.Error()}
-	}
-	return keeperRes{200, string(out)}
+	session.Stdin = stdin
+	session.Stdout = stdout
+	session.Stderr = stderr
+
+	return session.Run(cmd)
 }

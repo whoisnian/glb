@@ -8,11 +8,14 @@ import (
 	xknownhosts "golang.org/x/crypto/ssh/knownhosts"
 )
 
+// from: https://cs.opensource.google/go/x/crypto/+/master:ssh/common.go;l=71
 var supportedHostKeyAlgos = []string{
-	xssh.CertAlgoRSAv01, xssh.CertAlgoDSAv01, xssh.CertAlgoECDSA256v01,
+	xssh.CertSigAlgoRSASHA2512v01, xssh.CertSigAlgoRSASHA2256v01,
+	xssh.CertSigAlgoRSAv01, xssh.CertAlgoDSAv01, xssh.CertAlgoECDSA256v01,
 	xssh.CertAlgoECDSA384v01, xssh.CertAlgoECDSA521v01, xssh.CertAlgoED25519v01,
 	xssh.KeyAlgoECDSA256, xssh.KeyAlgoECDSA384, xssh.KeyAlgoECDSA521,
-	xssh.KeyAlgoRSA, xssh.KeyAlgoDSA,
+	xssh.SigAlgoRSASHA2512, xssh.SigAlgoRSASHA2256,
+	xssh.SigAlgoRSA, xssh.KeyAlgoDSA,
 	xssh.KeyAlgoED25519,
 }
 

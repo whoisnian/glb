@@ -3,6 +3,7 @@ package keeper
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"net"
 	"syscall"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"github.com/whoisnian/glb/daemon"
 	"github.com/whoisnian/glb/util/fsutil"
 	"github.com/whoisnian/glb/util/netutil"
+	"github.com/whoisnian/glb/util/strutil"
 )
 
 type Client struct {
@@ -27,16 +29,84 @@ func (c *Client) Result() (res keeperRes) {
 }
 
 func (c *Client) Run(cmd string) (string, error) {
-	data, _ := json.Marshal(runCommandData{cmd})
+	data, _ := json.Marshal(runCommandData{cmd, nil})
 	c.jconn.Send(keeperMsg{
 		Action: "run-command",
 		Data:   data,
 	})
-	if res := c.Result(); res.Status != 200 {
+	res := c.Result()
+	if res.Status == 500 {
 		return "", errors.New(res.Result)
-	} else {
-		return res.Result, nil
 	}
+	var d runCommandRes
+	err := json.Unmarshal(res.Data, &d)
+	if err != nil {
+		return "", err
+	}
+	if res.Status != 200 {
+		if len(d.Stderr) > 0 {
+			return "", errors.New(string(d.Stderr))
+		}
+		return "", errors.New(res.Result)
+	}
+	return string(d.Stdout), nil
+}
+
+func (c *Client) GetFileWriteTo(remoteFilePath string, writer io.Writer) error {
+	cmd := "cat " + strutil.ShellEscapeExceptTilde(remoteFilePath)
+
+	data, _ := json.Marshal(runCommandData{cmd, nil})
+	c.jconn.Send(keeperMsg{
+		Action: "run-command",
+		Data:   data,
+	})
+	res := c.Result()
+	if res.Status == 500 {
+		return errors.New(res.Result)
+	}
+	var d runCommandRes
+	err := json.Unmarshal(res.Data, &d)
+	if err != nil {
+		return err
+	}
+	if res.Status != 200 {
+		if len(d.Stderr) > 0 {
+			return errors.New(string(d.Stderr))
+		}
+		return errors.New(res.Result)
+	}
+	_, err = writer.Write(d.Stdout)
+	return err
+}
+
+func (c *Client) PutFileReadFrom(remoteFilePath string, reader io.Reader) error {
+	cmd := "tee " + strutil.ShellEscapeExceptTilde(remoteFilePath)
+	stdin, err := io.ReadAll(reader)
+	if err != nil {
+		return err
+	}
+
+	data, _ := json.Marshal(runCommandData{cmd, stdin})
+	c.jconn.Send(keeperMsg{
+		Action: "run-command",
+		Data:   data,
+	})
+	res := c.Result()
+	if res.Status == 500 {
+		return errors.New(res.Result)
+	}
+	var d runCommandRes
+	err = json.Unmarshal(res.Data, &d)
+	if err != nil {
+		return err
+	}
+	if res.Status != 200 {
+		if len(d.Stderr) > 0 {
+			return errors.New(string(d.Stderr))
+		}
+		return errors.New(res.Result)
+	}
+	return nil
 }
 
 func (k *Keeper) NewClient(addr string, user string, keyFile string) (*Client, error) {
