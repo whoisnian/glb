@@ -74,7 +74,10 @@ func (d createClientData) tag() string {
 
 func (c *keeperConn) createClient(data json.RawMessage) keeperRes {
 	var d createClientData
-	json.Unmarshal(data, &d)
+	err := json.Unmarshal(data, &d)
+	if err != nil {
+		return keeperRes{500, err.Error(), nil}
+	}
 
 	if sshClient, ok := sshClientMap.Load(d.tag()); ok {
 		c.sshClient = sshClient.(*xssh.Client)
@@ -82,7 +85,6 @@ func (c *keeperConn) createClient(data json.RawMessage) keeperRes {
 	}
 
 	var signer xssh.Signer
-	var err error
 	key := unmarshalKey(d.KeyType, d.KeyData)
 	if d.KeyType == "public-key" {
 		publicKey, err := xssh.ParsePublicKey(*key.(*[]byte))
@@ -131,22 +133,35 @@ func (c *keeperConn) createClient(data json.RawMessage) keeperRes {
 }
 
 type runCommandData struct {
-	Cmd string
+	Cmd   string
+	Stdin []byte
+}
+
+type runCommandRes struct {
+	Stdout []byte
+	Stderr []byte
 }
 
 func (c *keeperConn) runCommand(data json.RawMessage) keeperRes {
 	var d runCommandData
-	json.Unmarshal(data, &d)
-
-	var outbuf, errbuf bytes.Buffer
-	err := c.run(d.Cmd, nil, &outbuf, &errbuf)
-	if errbuf.Len() > 0 {
-		return keeperRes{500, errbuf.String(), nil}
-	} else if err != nil {
+	err := json.Unmarshal(data, &d)
+	if err != nil {
 		return keeperRes{500, err.Error(), nil}
 	}
 
-	return keeperRes{200, outbuf.String(), nil}
+	var outbuf, errbuf bytes.Buffer
+	if d.Stdin != nil {
+		err = c.run(d.Cmd, bytes.NewReader(d.Stdin), &outbuf, &errbuf)
+	} else {
+		err = c.run(d.Cmd, nil, &outbuf, &errbuf)
+	}
+	res, mErr := json.Marshal(runCommandRes{outbuf.Bytes(), errbuf.Bytes()})
+	if mErr != nil {
+		return keeperRes{500, mErr.Error(), nil}
+	} else if err != nil {
+		return keeperRes{400, err.Error(), res}
+	}
+	return keeperRes{200, "command return ok", res}
 }
 
 func (c *keeperConn) run(cmd string, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
