@@ -3,6 +3,7 @@ package logger
 import (
 	"fmt"
 	"net/http"
+	"runtime"
 	"strings"
 	"time"
 )
@@ -50,5 +51,26 @@ func Req(handler http.Handler) http.Handler {
 			r.RequestURI, " ",
 			r.UserAgent(), " ",
 			time.Since(lw.start).Milliseconds())+"\n")
+	})
+}
+
+// Example:
+//   if err := http.ListenAndServe(":8080", logger.Recovery(http.DefaultServeMux)); err != nil {
+//       logger.Fatal(err)
+//   }
+func Recovery(handler http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			// https://cs.opensource.google/go/go/+/refs/tags/go1.18:src/net/http/server.go;l=1822
+			if err := recover(); err != nil {
+				const size = 64 << 10
+				buf := make([]byte, size)
+				buf = buf[:runtime.Stack(buf, false)]
+
+				lout.Output(2, tagE+" panic: "+fmt.Sprint(err)+"\n"+string(buf))
+				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			}
+		}()
+		handler.ServeHTTP(w, r)
 	})
 }

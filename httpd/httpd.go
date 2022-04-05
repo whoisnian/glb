@@ -139,12 +139,6 @@ func NewMux() *Mux {
 func (mux *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	store := &Store{w, r, make(map[string]string)}
 
-	defer func() {
-		if err := recover(); err != nil {
-			store.Error500("Internal Server Error")
-		}
-	}()
-
 	node, paramValueList := findRoute(mux.root, r.URL.EscapedPath(), r.Method)
 	if node == nil {
 		store.Error404("Route not found")
