@@ -13,7 +13,7 @@ const (
 	cmd        string = "uname -a"
 )
 
-func Example() {
+func ExampleNewStore() {
 	sshStore := ssh.NewStore()
 	if err := sshStore.PreparePrivateKey(sshKeyFile); err != nil {
 		panic(err)

@@ -13,7 +13,7 @@ const (
 	cmd        string = "uname -a"
 )
 
-func Example() {
+func ExampleNewKeeper() {
 	k := keeper.NewKeeper()
 	if err := k.PreparePrivateKey(sshKeyFile); err != nil {
 		panic(err)
