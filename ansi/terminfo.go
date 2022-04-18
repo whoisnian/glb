@@ -7,7 +7,7 @@ import (
 
 // terminfo
 const (
-	ClearScreen      string = "\x1b[H\x1b[2J"
+	ClearScreen      string = "\x1b[H\x1b[3J"
 	ClearLineToRight string = "\x1b[K"
 	ScrollUp         string = "\x1bM"
 	ScrollDown       string = "\x1bD"
