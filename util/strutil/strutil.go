@@ -25,3 +25,13 @@ func ShellEscapeExceptTilde(s string) string {
 	}
 	return ShellEscape(s)
 }
+
+// IsDigitString checks if a string only contains digits.
+func IsDigitString(s string) bool {
+	for _, c := range s {
+		if c < '0' || c > '9' {
+			return false
+		}
+	}
+	return true
+}
