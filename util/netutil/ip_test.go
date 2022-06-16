@@ -1,9 +1,19 @@
 package netutil
 
 import (
+	"fmt"
+	"math/rand"
 	"net"
 	"testing"
+	"time"
 )
+
+var TEST_SEED int64
+
+func init() {
+	TEST_SEED = time.Now().Unix()
+	fmt.Printf("Running with rand seed %v\n", TEST_SEED)
+}
 
 var cidrRangeTests = []struct {
 	in   string
@@ -43,5 +53,85 @@ func TestLastIP(t *testing.T) {
 		if out := LastIP(cidr); !out.Equal(tt.to) {
 			t.Errorf("CIDR(%v).LastIP = %v, want %v", tt.in, out, tt.to)
 		}
+	}
+}
+
+type SimpleList struct {
+	list []net.IPNet
+}
+
+func NewSimpleList() *SimpleList {
+	return &SimpleList{}
+}
+
+func (s *SimpleList) Add(cidr net.IPNet) {
+	s.list = append(s.list, cidr)
+}
+
+func (s *SimpleList) Contains(ip net.IP) bool {
+	for _, cidr := range s.list {
+		if cidr.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+var LIST_SIZE = 36
+
+func TestChecklist4(t *testing.T) {
+	r := rand.New(rand.NewSource(TEST_SEED))
+	simplelist := NewSimpleList()
+	checklist := NewChecklist4()
+	for i := 0; i < LIST_SIZE; i++ {
+		buf := make([]byte, net.IPv4len)
+		r.Read(buf)
+		cidr := net.IPNet{IP: buf, Mask: net.CIDRMask(r.Intn(25)+8, 32)}
+		simplelist.Add(cidr)
+		checklist.Add(cidr)
+	}
+
+	buf := make([]byte, net.IPv4len)
+	for i := 0; i < 1e6; i++ {
+		r.Read(buf)
+		if simplelist.Contains(buf) != checklist.Contains(buf) {
+			t.Errorf("Checklist4.Contains(%v) = %v, want %v", buf, checklist.Contains(buf), simplelist.Contains(buf))
+		}
+	}
+}
+
+func BenchmarkSimpleList(b *testing.B) {
+	r := rand.New(rand.NewSource(TEST_SEED))
+	simplelist := NewSimpleList()
+	for i := 0; i < LIST_SIZE; i++ {
+		buf := make([]byte, net.IPv4len)
+		r.Read(buf)
+		cidr := net.IPNet{IP: buf, Mask: net.CIDRMask(r.Intn(25)+8, 32)}
+		simplelist.Add(cidr)
+	}
+
+	buf := make([]byte, net.IPv4len)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		r.Read(buf)
+		simplelist.Contains(buf)
+	}
+}
+
+func BenchmarkChecklist4(b *testing.B) {
+	r := rand.New(rand.NewSource(TEST_SEED))
+	checklist := NewChecklist4()
+	for i := 0; i < LIST_SIZE; i++ {
+		buf := make([]byte, net.IPv4len)
+		r.Read(buf)
+		cidr := net.IPNet{IP: buf, Mask: net.CIDRMask(r.Intn(25)+8, 32)}
+		checklist.Add(cidr)
+	}
+
+	buf := make([]byte, net.IPv4len)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		r.Read(buf)
+		checklist.Contains(buf)
 	}
 }
