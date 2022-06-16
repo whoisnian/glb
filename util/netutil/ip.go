@@ -37,7 +37,7 @@ func NewChecklist4() *Checklist4 {
 	return w
 }
 
-func (w *Checklist4) Add(cidr net.IPNet) error {
+func (w *Checklist4) Add(cidr *net.IPNet) error {
 	ones, bits := cidr.Mask.Size()
 	if bits != 32 || ones > 32 || len(cidr.IP) != net.IPv4len {
 		return ErrInvalidIPv4CIDR
@@ -56,7 +56,7 @@ func (w *Checklist4) Add(cidr net.IPNet) error {
 	return nil
 }
 
-func (w *Checklist4) Remove(cidr net.IPNet) error {
+func (w *Checklist4) Remove(cidr *net.IPNet) error {
 	ones, bits := cidr.Mask.Size()
 	if bits != 32 || ones > 32 || len(cidr.IP) != net.IPv4len {
 		return ErrInvalidIPv4CIDR
