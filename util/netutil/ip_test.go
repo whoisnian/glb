@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -57,18 +59,35 @@ func TestLastIP(t *testing.T) {
 }
 
 type SimpleList struct {
-	list []net.IPNet
+	mutex    sync.RWMutex
+	matchAll uint32
+	list     []net.IPNet
 }
 
 func NewSimpleList() *SimpleList {
 	return &SimpleList{}
 }
 
-func (s *SimpleList) Add(cidr net.IPNet) {
+func (s *SimpleList) Add(cidr net.IPNet) error {
+	ones, _ := cidr.Mask.Size()
+	if ones == 0 {
+		atomic.StoreUint32(&s.matchAll, 1)
+		return nil
+	}
+
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 	s.list = append(s.list, cidr)
+	return nil
 }
 
 func (s *SimpleList) Contains(ip net.IP) bool {
+	if atomic.LoadUint32(&s.matchAll) == 1 {
+		return true
+	}
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
 	for _, cidr := range s.list {
 		if cidr.Contains(ip) {
 			return true
