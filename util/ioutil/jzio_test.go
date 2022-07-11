@@ -44,7 +44,7 @@ var jzioTests = []struct {
 		{1, new(int)},
 		{65536, new(int)},
 	},
-	"H4sIAAAAAAAA/wAAAP//0jXkAgAAAP//0jXQM+UCAAAA//8y4AIAAAD//wKRAAAAAP//MuQCAAAA//8yMzU1NuMCAAAA//8BAAD//4RMRrMWAAAA",
+	"0jXkAgAAAP//0jXQM+UCAAAA//8y4AIAAAD//wKRAAAAAP//MuQCAAAA//8yMzU1NuMCAAAA//8BAAD//w==",
 }, {
 	[]jzioTestInput{
 		{nil, new(any)},
@@ -53,7 +53,7 @@ var jzioTests = []struct {
 		{"hello", new(string)},
 		{"测试", new(string)},
 	},
-	"H4sIAAAAAAAA/wAAAP//yivNyeECAAAA//8qKSpN5QIAAAD//1JS4gIAAAD//1LKSM3JyVfiAgAAAP//Unq2tfvF+qlKXAAAAAD//wEAAP//mxVz2h4AAAA=",
+	"yivNyeECAAAA//8qKSpN5QIAAAD//1JS4gIAAAD//1LKSM3JyVfiAgAAAP//Unq2tfvF+qlKXAAAAAD//wEAAP//",
 }, {
 	[]jzioTestInput{
 		{[]int{1, 2, 3}, new([]int)},
@@ -61,21 +61,21 @@ var jzioTests = []struct {
 		{[]byte{0x01, 0x02, 0x03}, new([]byte)},
 		{[]bool{true, false}, new([]bool)},
 	},
-	"H4sIAAAAAAAA/wAAAP//ijbUMdIxjuUCAAAA//+KVkpU0lFKUtJRSlaK5QIAAAD//1JyDPR0UeICAAAA//+KLikqTdVJS8wpTo3lAgAAAP//AQAA//8e1gr+KgAAAA==",
+	"ijbUMdIxjuUCAAAA//+KVkpU0lFKUtJRSlaK5QIAAAD//1JyDPR0UeICAAAA//+KLikqTdVJS8wpTo3lAgAAAP//AQAA//8=",
 }, {
 	[]jzioTestInput{
 		{map[string]int{"a": 1, "b": 2}, new(map[string]int)},
 		{map[string]string{"a": "s1", "b": "s2"}, new(map[string]string)},
 		{map[int]bool{1: true, 2: false}, new(map[int]bool)},
 	},
-	"H4sIAAAAAAAA/wAAAP//qlZKVLIy1FFKUrIyquUCAAAA//8C85SKDZXAAkrFRkq1XAAAAAD//6pWMlSyKikqTdVRMlKySkvMKU6t5QIAAAD//wEAAP//hTb9SjcAAAA=",
+	"qlZKVLIy1FFKUrIyquUCAAAA//8C85SKDZXAAkrFRkq1XAAAAAD//6pWMlSyKikqTdVRMlKySkvMKU6t5QIAAAD//wEAAP//",
 }, {
 	[]jzioTestInput{
 		{map[int][]int{1: {0}, 2: {2, 4}}, new(map[int][]int)},
 		{map[string][]string{"a": {"A"}, "b": {"B", "C"}}, new(map[string][]string)},
 		{map[int][]byte{1: {0x01}, 2: {0x02, 0x03}}, new(map[int][]byte)},
 	},
-	"H4sIAAAAAAAA/wAAAP//qlYyVLKKNojVUTJSsoo20jGJreUCAAAA//+qVkpUsopWclSK1VFKArGclHSUnJVia7kAAAAA//8Cq1ZyDLS1VQJrUHJM97VVquUCAAAA//8BAAD//0FLh8dGAAAA",
+	"qlYyVLKKNojVUTJSsoo20jGJreUCAAAA//+qVkpUsopWclSK1VFKArGclHSUnJVia7kAAAAA//8Cq1ZyDLS1VQJrUHJM97VVquUCAAAA//8BAAD//w==",
 }, {
 	[]jzioTestInput{
 		{jzioTestT1{1, 0.5, "ab"}, new(jzioTestT1)},
@@ -97,7 +97,7 @@ var jzioTests = []struct {
 			map[string][]byte{"a": {0x01}, "b": {0x02, 0x03}},
 		}, new(jzioTestT3)},
 	},
-	"H4sIAAAAAAAA/wAAAP//qlZyVLIy1FFyUrIy0DPVUXJWslJKTFKq5QIAAAD//6pWcnRyVrLCJa+j5KJkFW2oYxSro+SqZKXkGOhpq6Sj5KZkFa3kGGgLYjum+9oqxdZyAQAAAP//qlZycXUDm0QdA3WU3EHGJIKNSVKyMqrVUfIAiRgqWZUUlabqKBkpWaUl5hSn1uooeUKVwsxIAjFB5tTWcgEAAAD//wEAAP//BkYdFfwAAAA=",
+	"qlZyVLIy1FFyUrIy0DPVUXJWslJKTFKq5QIAAAD//6pWcnRyVrLCJa+j5KJkFW2oYxSro+SqZKXkGOhpq6Sj5KZkFa3kGGgLYjum+9oqxdZyAQAAAP//qlZycXUDm0QdA3WU3EHGJIKNSVKyMqrVUfIAiRgqWZUUlabqKBkpWaUl5hSn1uooeUKVwsxIAjFB5tTWcgEAAAD//wEAAP//",
 }}
 
 func TestReader(t *testing.T) {
@@ -106,10 +106,7 @@ func TestReader(t *testing.T) {
 		if err != nil {
 			t.Errorf("#%d. Base64 decode error: %v", i, err)
 		}
-		r, err := NewReader(bytes.NewBuffer(resBytes))
-		if err != nil {
-			t.Errorf("#%d. NewReader() error: %v", i, err)
-		}
+		r := NewReader(bytes.NewBuffer(resBytes))
 		defer r.Close()
 		for j, input := range test.inputs {
 			// reflect usage from:

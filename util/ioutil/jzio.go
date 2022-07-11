@@ -1,7 +1,7 @@
 package ioutil
 
 import (
-	"compress/gzip" // TODO: test stateless gzip
+	"compress/flate"
 	"encoding/json"
 	"io"
 )
@@ -9,16 +9,14 @@ import (
 type Reader struct {
 	rd      io.Reader
 	jDec    *json.Decoder
-	zReader *gzip.Reader
+	zReader io.ReadCloser
 }
 
-func NewReader(r io.Reader) (jz *Reader, err error) {
-	jz = &Reader{rd: r}
-	if jz.zReader, err = gzip.NewReader(r); err != nil {
-		return nil, err
-	}
+func NewReader(r io.Reader) *Reader {
+	jz := &Reader{rd: r}
+	jz.zReader = flate.NewReader(r)
 	jz.jDec = json.NewDecoder(jz.zReader)
-	return jz, nil
+	return jz
 }
 
 func (jz *Reader) UnMarshal(v any) error {
@@ -35,13 +33,13 @@ func (jz *Reader) Close() error {
 type Writer struct {
 	wr      io.Writer
 	jEnc    *json.Encoder
-	zWriter *gzip.Writer
+	zWriter *flate.Writer
 }
 
 func NewWriter(w io.Writer) (jz *Writer, err error) {
 	jz = &Writer{wr: w}
-	jz.zWriter = gzip.NewWriter(w)
-	if err = jz.zWriter.Flush(); err != nil {
+	jz.zWriter, err = flate.NewWriter(w, flate.DefaultCompression)
+	if err != nil {
 		return nil, err
 	}
 	jz.jEnc = json.NewEncoder(jz.zWriter)
@@ -65,10 +63,7 @@ type ReadWriter struct {
 }
 
 func NewReadWriter(r io.Reader, w io.Writer) (rw *ReadWriter, err error) {
-	rw = &ReadWriter{}
-	if rw.Reader, err = NewReader(r); err != nil {
-		return nil, err
-	}
+	rw = &ReadWriter{Reader: NewReader(r)}
 	if rw.Writer, err = NewWriter(w); err != nil {
 		return nil, err
 	}
