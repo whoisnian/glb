@@ -20,13 +20,13 @@ func TestWaitForInterrupt(t *testing.T) {
 
 	p, err := os.FindProcess(os.Getpid())
 	if err != nil {
-		t.Errorf("os.FindProcess() error: %v", err)
+		t.Fatalf("os.FindProcess() error: %v", err)
 	}
 	time.AfterFunc(waitingTime, func() { p.Signal(os.Interrupt) })
 
 	select {
 	case <-done:
 	case <-time.After(timeoutTime):
-		t.Error("WaitForInterrupt timeout")
+		t.Fatal("WaitForInterrupt timeout")
 	}
 }

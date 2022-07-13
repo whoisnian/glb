@@ -107,6 +107,7 @@ func TestReader(t *testing.T) {
 		resBytes, err := base64.StdEncoding.DecodeString(test.resB64)
 		if err != nil {
 			t.Errorf("#%d. Base64 decode error: %v", i, err)
+			continue
 		}
 		r := jzio.NewReader(bytes.NewBuffer(resBytes))
 		defer r.Close()
@@ -134,6 +135,7 @@ func TestWriter(t *testing.T) {
 		w, err := jzio.NewWriter(buf)
 		if err != nil {
 			t.Errorf("#%d. NewWriter() error: %v", i, err)
+			continue
 		}
 		for j, input := range test.inputs {
 			if err := w.Marshal(input.v); err != nil {
@@ -155,11 +157,13 @@ func TestReadWriter(t *testing.T) {
 		resBytes, err := base64.StdEncoding.DecodeString(test.resB64)
 		if err != nil {
 			t.Errorf("#%d. Base64 decode error: %v", i, err)
+			continue
 		}
 		buf := new(bytes.Buffer)
 		rw, err := jzio.NewReadWriter(bytes.NewBuffer(resBytes), buf)
 		if err != nil {
 			t.Errorf("#%d. NewReadWriter() error: %v", i, err)
+			continue
 		}
 		for j, input := range test.inputs {
 			typ := reflect.TypeOf(input.p)
