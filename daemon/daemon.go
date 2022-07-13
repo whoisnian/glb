@@ -19,18 +19,20 @@ var handlerMap = make(map[string]func())
 
 func Register(name string, handler func()) {
 	if _, ok := handlerMap[name]; ok {
-		panic("Handler '" + name + "' already registered")
+		panic("handler '" + name + "' already registered")
 	}
 	handlerMap[name] = handler
 }
 
 func Run() bool {
-	name := os.Getenv(envDaemonName)
-	if handler, ok := handlerMap[name]; ok {
-		if os.Getenv(envDaemonFlag) == "isLauncher" {
-			launch(name)
-		} else {
-			handler()
+	if name, ok := os.LookupEnv(envDaemonName); ok {
+		if handler, ok := handlerMap[name]; ok {
+			switch os.Getenv(envDaemonFlag) {
+			case "isLauncher":
+				launch(name)
+			case "isDaemon":
+				handler()
+			}
 		}
 		return true
 	} else {
@@ -42,7 +44,7 @@ func launch(name string) {
 	cmd := exec.Command(os.Args[0])
 	cmd.Env = append(os.Environ(), envDaemonName+"="+name, envDaemonFlag+"=isDaemon")
 	if err := cmd.Start(); err != nil {
-		os.Stderr.Write([]byte(err.Error()))
+		os.Stderr.Write([]byte("start daemon: " + err.Error()))
 		return
 	} else {
 		binary.Write(os.Stdout, binary.LittleEndian, uint32(cmd.Process.Pid))
@@ -50,12 +52,15 @@ func launch(name string) {
 
 	finished := make(chan struct{})
 	go func() {
-		cmd.Wait()
+		if err := cmd.Wait(); err != nil {
+			os.Stderr.Write([]byte("daemon: " + err.Error()))
+		}
 		close(finished)
 	}()
 
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
+	defer signal.Stop(interrupt)
 	select {
 	case <-finished:
 	case <-interrupt:
@@ -71,12 +76,12 @@ func Launch(name string) (pid int, err error) {
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if err = cmd.Run(); err != nil {
-		return 0, err
+		return 0, errors.New("start launcher: " + err.Error())
 	} else if stderr.Len() > 0 {
 		return 0, errors.New(stderr.String())
 	} else {
 		var data uint32
-		err = binary.Read(&stdout, binary.LittleEndian, data)
+		err = binary.Read(&stdout, binary.LittleEndian, &data)
 		return int(data), err
 	}
 }
