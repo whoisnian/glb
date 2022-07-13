@@ -1,7 +1,9 @@
-package strutil
+package strutil_test
 
 import (
 	"testing"
+
+	"github.com/whoisnian/glb/util/strutil"
 )
 
 func TestSliceContain(t *testing.T) {
@@ -18,7 +20,7 @@ func TestSliceContain(t *testing.T) {
 		{[]string{"a", "b", "c"}, "d", false},
 	}
 	for _, test := range tests {
-		if got := SliceContain(test.inputSlice, test.inputValue); got != test.want {
+		if got := strutil.SliceContain(test.inputSlice, test.inputValue); got != test.want {
 			t.Errorf("SliceContain(%q, %q) = %v, want %v", test.inputSlice, test.inputValue, got, test.want)
 		}
 	}
@@ -36,7 +38,7 @@ func TestShellEscape(t *testing.T) {
 		{`~/doc`, `'~/doc'`},
 	}
 	for _, test := range tests {
-		if got := ShellEscape(test.input); got != test.want {
+		if got := strutil.ShellEscape(test.input); got != test.want {
 			t.Errorf("ShellEscape(%q) = %q, want %q", test.input, got, test.want)
 		}
 	}
@@ -54,7 +56,7 @@ func TestShellEscapeExceptTilde(t *testing.T) {
 		{`~/doc`, `~/'doc'`},
 	}
 	for _, test := range tests {
-		if got := ShellEscapeExceptTilde(test.input); got != test.want {
+		if got := strutil.ShellEscapeExceptTilde(test.input); got != test.want {
 			t.Errorf("ShellEscapeExceptTilde(%q) = %q, want %q", test.input, got, test.want)
 		}
 	}
@@ -74,7 +76,7 @@ func TestIsDigitString(t *testing.T) {
 		{"12345", true},
 	}
 	for _, test := range tests {
-		if got := IsDigitString(test.input); got != test.want {
+		if got := strutil.IsDigitString(test.input); got != test.want {
 			t.Errorf("IsDigitString(%q) = %v, want %v", test.input, got, test.want)
 		}
 	}

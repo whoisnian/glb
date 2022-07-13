@@ -1,10 +1,12 @@
-package ioutil
+package jzio_test
 
 import (
 	"bytes"
 	"encoding/base64"
 	"reflect"
 	"testing"
+
+	"github.com/whoisnian/glb/jzio"
 )
 
 type jzioTestT1 struct {
@@ -106,7 +108,7 @@ func TestReader(t *testing.T) {
 		if err != nil {
 			t.Errorf("#%d. Base64 decode error: %v", i, err)
 		}
-		r := NewReader(bytes.NewBuffer(resBytes))
+		r := jzio.NewReader(bytes.NewBuffer(resBytes))
 		defer r.Close()
 		for j, input := range test.inputs {
 			// reflect usage from:
@@ -129,7 +131,7 @@ func TestReader(t *testing.T) {
 func TestWriter(t *testing.T) {
 	for i, test := range jzioTests {
 		buf := new(bytes.Buffer)
-		w, err := NewWriter(buf)
+		w, err := jzio.NewWriter(buf)
 		if err != nil {
 			t.Errorf("#%d. NewWriter() error: %v", i, err)
 		}
@@ -155,7 +157,7 @@ func TestReadWriter(t *testing.T) {
 			t.Errorf("#%d. Base64 decode error: %v", i, err)
 		}
 		buf := new(bytes.Buffer)
-		rw, err := NewReadWriter(bytes.NewBuffer(resBytes), buf)
+		rw, err := jzio.NewReadWriter(bytes.NewBuffer(resBytes), buf)
 		if err != nil {
 			t.Errorf("#%d. NewReadWriter() error: %v", i, err)
 		}

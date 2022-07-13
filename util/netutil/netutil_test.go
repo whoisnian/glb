@@ -1,12 +1,14 @@
-package netutil
+package netutil_test
 
 import (
 	"net/netip"
 	"testing"
+
+	"github.com/whoisnian/glb/util/netutil"
 )
 
 func TestGetOutBoundIP(t *testing.T) {
-	got, err := GetOutBoundIP()
+	got, err := netutil.GetOutBoundIP()
 	if err != nil {
 		t.Errorf("GetOutBoundIP() error: %v", err)
 	}

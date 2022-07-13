@@ -1,10 +1,11 @@
-package osutil
+package osutil_test
 
 import (
+	"os"
 	"testing"
 	"time"
 
-	"golang.org/x/sys/unix"
+	"github.com/whoisnian/glb/util/osutil"
 )
 
 func TestWaitForInterrupt(t *testing.T) {
@@ -13,14 +14,15 @@ func TestWaitForInterrupt(t *testing.T) {
 	timeoutTime := 10*time.Millisecond + waitingTime
 
 	go func() {
-		WaitForInterrupt()
+		osutil.WaitForInterrupt()
 		close(done)
 	}()
 
-	time.AfterFunc(waitingTime, func() {
-		// test for Unix
-		unix.Kill(unix.Getpid(), unix.SIGINT)
-	})
+	p, err := os.FindProcess(os.Getpid())
+	if err != nil {
+		t.Errorf("os.FindProcess() error: %v", err)
+	}
+	time.AfterFunc(waitingTime, func() { p.Signal(os.Interrupt) })
 
 	select {
 	case <-done:

@@ -1,4 +1,4 @@
-package ioutil
+package jzio
 
 import (
 	"compress/flate"

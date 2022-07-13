@@ -1,8 +1,10 @@
-package netutil
+package netutil_test
 
 import (
 	"net"
 	"testing"
+
+	"github.com/whoisnian/glb/util/netutil"
 )
 
 var cidrRangeTests = []struct {
@@ -31,7 +33,7 @@ var cidrRangeTests = []struct {
 func TestFirstIP(t *testing.T) {
 	for _, tt := range cidrRangeTests {
 		_, cidr, _ := net.ParseCIDR(tt.in)
-		if out := FirstIP(cidr); !out.Equal(tt.from) {
+		if out := netutil.FirstIP(cidr); !out.Equal(tt.from) {
 			t.Errorf("CIDR(%v).FirstIP = %v, want %v", tt.in, out, tt.from)
 		}
 	}
@@ -40,7 +42,7 @@ func TestFirstIP(t *testing.T) {
 func TestLastIP(t *testing.T) {
 	for _, tt := range cidrRangeTests {
 		_, cidr, _ := net.ParseCIDR(tt.in)
-		if out := LastIP(cidr); !out.Equal(tt.to) {
+		if out := netutil.LastIP(cidr); !out.Equal(tt.to) {
 			t.Errorf("CIDR(%v).LastIP = %v, want %v", tt.in, out, tt.to)
 		}
 	}

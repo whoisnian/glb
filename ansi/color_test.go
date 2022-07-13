@@ -1,8 +1,9 @@
-package ansi
+package ansi_test
 
 import (
 	"testing"
 
+	"github.com/whoisnian/glb/ansi"
 	"golang.org/x/term"
 )
 
@@ -12,15 +13,15 @@ var colorTests = []struct {
 	ansi string
 	term []byte
 }{
-	{"Black", Black, escape.Black},
-	{"Red", Red, escape.Red},
-	{"Green", Green, escape.Green},
-	{"Yellow", Yellow, escape.Yellow},
-	{"Blue", Blue, escape.Blue},
-	{"Magenta", Magenta, escape.Magenta},
-	{"Cyan", Cyan, escape.Cyan},
-	{"White", White, escape.White},
-	{"Reset", Reset, escape.Reset},
+	{"Black", ansi.Black, escape.Black},
+	{"Red", ansi.Red, escape.Red},
+	{"Green", ansi.Green, escape.Green},
+	{"Yellow", ansi.Yellow, escape.Yellow},
+	{"Blue", ansi.Blue, escape.Blue},
+	{"Magenta", ansi.Magenta, escape.Magenta},
+	{"Cyan", ansi.Cyan, escape.Cyan},
+	{"White", ansi.White, escape.White},
+	{"Reset", ansi.Reset, escape.Reset},
 }
 
 func TestColor(t *testing.T) {

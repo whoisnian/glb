@@ -1,7 +1,9 @@
-package ansi
+package ansi_test
 
 import (
 	"testing"
+
+	"github.com/whoisnian/glb/ansi"
 )
 
 func TestScrollUpN(t *testing.T) {
@@ -16,7 +18,7 @@ func TestScrollUpN(t *testing.T) {
 		{5, "\x1bM\x1bM\x1bM\x1bM\x1bM"},
 	}
 	for _, test := range tests {
-		if got := ScrollUpN(test.input); got != test.want {
+		if got := ansi.ScrollUpN(test.input); got != test.want {
 			t.Errorf("ScrollUpN(%d) = %q, want %q", test.input, got, test.want)
 		}
 	}
@@ -34,7 +36,7 @@ func TestScrollDownN(t *testing.T) {
 		{5, "\x1bD\x1bD\x1bD\x1bD\x1bD"},
 	}
 	for _, test := range tests {
-		if got := ScrollDownN(test.input); got != test.want {
+		if got := ansi.ScrollDownN(test.input); got != test.want {
 			t.Errorf("ScrollDownN(%d) = %q, want %q", test.input, got, test.want)
 		}
 	}
@@ -51,7 +53,7 @@ func TestSetCursorPos(t *testing.T) {
 		{[2]int{5, 5}, "\x1b[5;5H"},
 	}
 	for _, test := range tests {
-		if got := SetCursorPos(test.input[0], test.input[1]); got != test.want {
+		if got := ansi.SetCursorPos(test.input[0], test.input[1]); got != test.want {
 			t.Errorf("SetCursorPos(%d, %d) = %q, want %q", test.input[0], test.input[1], got, test.want)
 		}
 	}

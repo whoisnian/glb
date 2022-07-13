@@ -1,8 +1,10 @@
-package fsutil
+package fsutil_test
 
 import (
 	"os"
 	"testing"
+
+	"github.com/whoisnian/glb/util/fsutil"
 )
 
 func TestResolveHomeDir(t *testing.T) {
@@ -24,7 +26,7 @@ func TestResolveHomeDir(t *testing.T) {
 		{"~/ssh", "/home/user/ssh"},
 	}
 	for _, test := range tests {
-		if got, err := ResolveHomeDir(test.input); err != nil {
+		if got, err := fsutil.ResolveHomeDir(test.input); err != nil {
 			t.Errorf("ResolveHomeDir(%q) error: %v", test.input, err)
 		} else if got != test.want {
 			t.Errorf("ResolveHomeDir(%q) = %q, want %q", test.input, got, test.want)
@@ -47,7 +49,7 @@ func TestResolveBase(t *testing.T) {
 		{"/data", "/doc/..", "/data"},
 	}
 	for _, test := range tests {
-		if got := ResolveBase(test.inputBase, test.inputRaw); got != test.want {
+		if got := fsutil.ResolveBase(test.inputBase, test.inputRaw); got != test.want {
 			t.Errorf("ResolveBase(%q, %q) = %q, want %q", test.inputBase, test.inputRaw, got, test.want)
 		}
 	}
