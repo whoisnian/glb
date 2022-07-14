@@ -45,6 +45,12 @@ func tcpPong() {
 	}
 }
 
+func tryKill(pid int) {
+	if p, err := os.FindProcess(pid); err == nil {
+		p.Kill()
+	}
+}
+
 func TestRegister(t *testing.T) {
 	defer func() { _ = recover() }()
 	daemon.Register("TestRegister", noop)
@@ -81,7 +87,7 @@ func TestRun(t *testing.T) {
 	var data uint32
 	err = binary.Read(pr, binary.LittleEndian, &data)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatal("launcher stdout: " + err.Error())
 	} else if data == 0 {
 		t.Fatal("Launcher should output daemon pid")
 	}
@@ -100,11 +106,7 @@ func TestLaunch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() {
-		if p, err := os.FindProcess(pid); err == nil {
-			p.Kill()
-		}
-	}()
+	defer tryKill(pid)
 
 	conn, err := net.Dial("tcp", tcpPongAddr)
 	if err != nil {

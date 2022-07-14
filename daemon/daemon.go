@@ -81,8 +81,10 @@ func Launch(name string) (pid int, err error) {
 		return 0, errors.New(stderr.String())
 	} else {
 		var data uint32
-		err = binary.Read(&stdout, binary.LittleEndian, &data)
-		return int(data), err
+		if err = binary.Read(&stdout, binary.LittleEndian, &data); err != nil {
+			return 0, errors.New("launcher stdout: " + err.Error())
+		}
+		return int(data), nil
 	}
 }
 
