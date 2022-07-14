@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -76,13 +77,13 @@ func Launch(name string) (pid int, err error) {
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if err = cmd.Run(); err != nil {
-		return 0, errors.New("start launcher: " + err.Error())
+		return 0, fmt.Errorf("start launcher: %v", err)
 	} else if stderr.Len() > 0 {
 		return 0, errors.New(stderr.String())
 	} else {
 		var data uint32
 		if err = binary.Read(&stdout, binary.LittleEndian, &data); err != nil {
-			return 0, errors.New("launcher stdout: " + err.Error())
+			return 0, fmt.Errorf("launcher stdout: %v", err)
 		}
 		return int(data), nil
 	}

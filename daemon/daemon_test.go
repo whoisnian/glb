@@ -87,7 +87,7 @@ func TestRun(t *testing.T) {
 	var data uint32
 	err = binary.Read(pr, binary.LittleEndian, &data)
 	if err != nil {
-		t.Fatal("launcher stdout: " + err.Error())
+		t.Fatalf("launcher stdout: %v", err)
 	} else if data == 0 {
 		t.Fatal("Launcher should output daemon pid")
 	}
