@@ -19,6 +19,7 @@ const (
 	DisableLineWrap  string = "\x1b[?7l"
 )
 
+// ScrollUpN repeats ScrollUp for N times.
 func ScrollUpN(n int) string {
 	if n <= 0 {
 		return ""
@@ -26,6 +27,7 @@ func ScrollUpN(n int) string {
 	return strings.Repeat(ScrollUp, n)
 }
 
+// ScrollDownN repeats ScrollDown for N times.
 func ScrollDownN(n int) string {
 	if n <= 0 {
 		return ""
@@ -33,6 +35,7 @@ func ScrollDownN(n int) string {
 	return strings.Repeat(ScrollDown, n)
 }
 
+// SetCursorPos moves cursor to (row, col) location.
 // The position of cursor is 1-based, so (1, 1) means 'top left corner'.
 func SetCursorPos(row, col int) string {
 	if row < 1 {
