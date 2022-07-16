@@ -102,15 +102,15 @@ var jzioTests = []struct {
 	"qlZyVLIy1FFyUrIy0DPVUXJWslJKTFKq5QIAAAD//6pWcnRyVrLCJa+j5KJkFW2oYxSro+SqZKXkGOhpq6Sj5KZkFa3kGGgLYjum+9oqxdZyAQAAAP//qlZycXUDm0QdA3WU3EHGJIKNSVKyMqrVUfIAiRgqWZUUlabqKBkpWaUl5hSn1uooeUKVwsxIAjFB5tTWcgEAAAD//wEAAP//",
 }}
 
-func TestReader(t *testing.T) {
+func TestDecoder(t *testing.T) {
 	for i, test := range jzioTests {
 		resBytes, err := base64.StdEncoding.DecodeString(test.resB64)
 		if err != nil {
 			t.Errorf("#%d. Base64 decode error: %v", i, err)
 			continue
 		}
-		r := jzio.NewReader(bytes.NewBuffer(resBytes))
-		defer r.Close()
+		dec := jzio.NewDecoder(bytes.NewBuffer(resBytes))
+		defer dec.Close()
 		for j, input := range test.inputs {
 			// reflect usage from:
 			// https://github.com/golang/go/blob/4aa1efed4853ea067d665a952eee77c52faac774/src/encoding/json/decode_test.go#L1091
@@ -120,39 +120,39 @@ func TestReader(t *testing.T) {
 				break
 			}
 			v := reflect.New(typ.Elem())
-			if err := r.UnMarshal(v.Interface()); err != nil {
-				t.Errorf("#%d.%d Reader.UnMarshal() error: %v", i, j, err)
+			if err := dec.UnMarshal(v.Interface()); err != nil {
+				t.Errorf("#%d.%d Decoder.UnMarshal() error: %v", i, j, err)
 			} else if !reflect.DeepEqual(v.Elem().Interface(), input.v) {
-				t.Errorf("#%d.%d Reader.UnMarshal() = %T, want %T", i, j, v.Elem().Interface(), input.v)
+				t.Errorf("#%d.%d Decoder.UnMarshal() = %T, want %T", i, j, v.Elem().Interface(), input.v)
 			}
 		}
 	}
 }
 
-func TestWriter(t *testing.T) {
+func TestEncoder(t *testing.T) {
 	for i, test := range jzioTests {
 		buf := new(bytes.Buffer)
-		w, err := jzio.NewWriter(buf)
+		enc, err := jzio.NewEncoder(buf)
 		if err != nil {
-			t.Errorf("#%d. NewWriter() error: %v", i, err)
+			t.Errorf("#%d. NewEncoder() error: %v", i, err)
 			continue
 		}
 		for j, input := range test.inputs {
-			if err := w.Marshal(input.v); err != nil {
-				t.Errorf("#%d.%d Writer.Marshal() error: %v", i, j, err)
+			if err := enc.Marshal(input.v); err != nil {
+				t.Errorf("#%d.%d Encoder.Marshal() error: %v", i, j, err)
 			}
 		}
-		if err := w.Close(); err != nil {
-			t.Errorf("#%d. Writer.Close() error: %v", i, err)
+		if err := enc.Close(); err != nil {
+			t.Errorf("#%d. Encoder.Close() error: %v", i, err)
 		}
 		got := base64.StdEncoding.EncodeToString(buf.Bytes())
 		if test.resB64 != got {
-			t.Errorf("#%d. Writer.Marshal() = %v, want %v", i, got, test.resB64)
+			t.Errorf("#%d. Encoder.Marshal() = %v, want %v", i, got, test.resB64)
 		}
 	}
 }
 
-func TestReadWriter(t *testing.T) {
+func TestCodec(t *testing.T) {
 	for i, test := range jzioTests {
 		resBytes, err := base64.StdEncoding.DecodeString(test.resB64)
 		if err != nil {
@@ -160,9 +160,9 @@ func TestReadWriter(t *testing.T) {
 			continue
 		}
 		buf := new(bytes.Buffer)
-		rw, err := jzio.NewReadWriter(bytes.NewBuffer(resBytes), buf)
+		codec, err := jzio.NewCodec(bytes.NewBuffer(resBytes), buf)
 		if err != nil {
-			t.Errorf("#%d. NewReadWriter() error: %v", i, err)
+			t.Errorf("#%d. NewCodec() error: %v", i, err)
 			continue
 		}
 		for j, input := range test.inputs {
@@ -172,20 +172,20 @@ func TestReadWriter(t *testing.T) {
 				break
 			}
 			v := reflect.New(typ.Elem())
-			if err := rw.UnMarshal(v.Interface()); err != nil {
-				t.Errorf("#%d.%d ReadWriter.UnMarshal() error: %v", i, j, err)
+			if err := codec.UnMarshal(v.Interface()); err != nil {
+				t.Errorf("#%d.%d Codec.UnMarshal() error: %v", i, j, err)
 			} else if !reflect.DeepEqual(v.Elem().Interface(), input.v) {
-				t.Errorf("#%d.%d ReadWriter.UnMarshal() = %T, want %T", i, j, v.Elem().Interface(), input.v)
-			} else if err := rw.Marshal(v.Elem().Interface()); err != nil {
-				t.Errorf("#%d.%d ReadWriter.Marshal() error: %v", i, j, err)
+				t.Errorf("#%d.%d Codec.UnMarshal() = %T, want %T", i, j, v.Elem().Interface(), input.v)
+			} else if err := codec.Marshal(v.Elem().Interface()); err != nil {
+				t.Errorf("#%d.%d Codec.Marshal() error: %v", i, j, err)
 			}
 		}
-		if err := rw.Close(); err != nil {
-			t.Errorf("#%d. ReadWriter.Close() error: %v", i, err)
+		if err := codec.Close(); err != nil {
+			t.Errorf("#%d. Codec.Close() error: %v", i, err)
 		}
 		got := base64.StdEncoding.EncodeToString(buf.Bytes())
 		if test.resB64 != got {
-			t.Errorf("#%d. ReadWriter.Marshal() = %v, want %v", i, got, test.resB64)
+			t.Errorf("#%d. Codec.Marshal() = %v, want %v", i, got, test.resB64)
 		}
 	}
 }
