@@ -32,6 +32,7 @@ func requestAndCheck(t *testing.T, url string, code int, body []byte) {
 	} else if resp.StatusCode != code {
 		t.Fatalf("request %v get status %d, want %d", url, resp.StatusCode, code)
 	} else if data, _ := io.ReadAll(resp.Body); !bytes.Equal(data, body) {
+		defer resp.Body.Close()
 		t.Fatalf("request %v get body %q, want %q", url, data, body)
 	}
 }
@@ -52,10 +53,12 @@ func TestReq(t *testing.T) {
 	running := make(chan struct{})
 	go func() {
 		close(running)
-		server.ListenAndServe()
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			panic(err)
+		}
 	}()
-	t.Cleanup(func() { server.Shutdown(context.Background()) })
 	<-running
+	defer server.Shutdown(context.Background())
 
 	stdout.Reset()
 	requestAndCheck(t, "http://127.0.0.1:8000/200", http.StatusOK, httpResp)
@@ -87,10 +90,12 @@ func TestRecovery(t *testing.T) {
 	running := make(chan struct{})
 	go func() {
 		close(running)
-		server.ListenAndServe()
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			panic(err)
+		}
 	}()
-	t.Cleanup(func() { server.Shutdown(context.Background()) })
 	<-running
+	defer server.Shutdown(context.Background())
 
 	stderr.Reset()
 	requestAndCheck(t, "http://127.0.0.1:8000/panic", http.StatusInternalServerError, []byte(http.StatusText(http.StatusInternalServerError)+"\n"))
@@ -110,10 +115,12 @@ func TestRecoveryWithReq(t *testing.T) {
 	running := make(chan struct{})
 	go func() {
 		close(running)
-		server.ListenAndServe()
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			panic(err)
+		}
 	}()
-	t.Cleanup(func() { server.Shutdown(context.Background()) })
 	<-running
+	defer server.Shutdown(context.Background())
 
 	stdout.Reset()
 	stderr.Reset()
