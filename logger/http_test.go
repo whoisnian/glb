@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"net"
 	"net/http"
 	"regexp"
 	"testing"
@@ -49,31 +50,32 @@ func TestReq(t *testing.T) {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write(httpResp)
 	})
-	server := &http.Server{Addr: ":8000", Handler: logger.Req(mux)}
-	running := make(chan struct{})
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("net.Listen: %v", err)
+	}
+	server := &http.Server{Addr: ln.Addr().String(), Handler: logger.Req(mux)}
 	go func() {
-		close(running)
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := server.Serve(ln); err != nil && err != http.ErrServerClosed {
 			panic(err)
 		}
 	}()
-	<-running
 	defer server.Shutdown(context.Background())
 
 	stdout.Reset()
-	requestAndCheck(t, "http://127.0.0.1:8000/200", http.StatusOK, httpResp)
+	requestAndCheck(t, "http://"+server.Addr+"/200", http.StatusOK, httpResp)
 	if !reForRequest.Match(stdout.Bytes()) {
 		t.Fatalf("request log should match %q is %q", reForRequest, stdout.Bytes())
 	}
 
 	stdout.Reset()
-	requestAndCheck(t, "http://127.0.0.1:8000/400", http.StatusBadRequest, httpResp)
+	requestAndCheck(t, "http://"+server.Addr+"/400", http.StatusBadRequest, httpResp)
 	if !reForRequest.Match(stdout.Bytes()) {
 		t.Fatalf("request log should match %q is %q", reForRequest, stdout.Bytes())
 	}
 
 	stdout.Reset()
-	requestAndCheck(t, "http://127.0.0.1:8000/500", http.StatusInternalServerError, httpResp)
+	requestAndCheck(t, "http://"+server.Addr+"/500", http.StatusInternalServerError, httpResp)
 	if !reForRequest.Match(stdout.Bytes()) {
 		t.Fatalf("request log should match %q is %q", reForRequest, stdout.Bytes())
 	}
@@ -86,19 +88,20 @@ func TestRecovery(t *testing.T) {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/panic", func(w http.ResponseWriter, _ *http.Request) { panic(string(httpResp)) })
-	server := &http.Server{Addr: ":8000", Handler: logger.Recovery(mux)}
-	running := make(chan struct{})
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("net.Listen: %v", err)
+	}
+	server := &http.Server{Addr: ln.Addr().String(), Handler: logger.Recovery(mux)}
 	go func() {
-		close(running)
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := server.Serve(ln); err != nil && err != http.ErrServerClosed {
 			panic(err)
 		}
 	}()
-	<-running
 	defer server.Shutdown(context.Background())
 
 	stderr.Reset()
-	requestAndCheck(t, "http://127.0.0.1:8000/panic", http.StatusInternalServerError, []byte(http.StatusText(http.StatusInternalServerError)+"\n"))
+	requestAndCheck(t, "http://"+server.Addr+"/panic", http.StatusInternalServerError, []byte(http.StatusText(http.StatusInternalServerError)+"\n"))
 	if !reForPanic.Match(stderr.Bytes()) {
 		t.Fatalf("request log should match %q is %s", reForPanic, stderr.Bytes())
 	}
@@ -111,20 +114,21 @@ func TestRecoveryWithReq(t *testing.T) {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/panic", func(w http.ResponseWriter, _ *http.Request) { panic(string(httpResp)) })
-	server := &http.Server{Addr: ":8000", Handler: logger.Req(logger.Recovery(mux))}
-	running := make(chan struct{})
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("net.Listen: %v", err)
+	}
+	server := &http.Server{Addr: ln.Addr().String(), Handler: logger.Req(logger.Recovery(mux))}
 	go func() {
-		close(running)
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := server.Serve(ln); err != nil && err != http.ErrServerClosed {
 			panic(err)
 		}
 	}()
-	<-running
 	defer server.Shutdown(context.Background())
 
 	stdout.Reset()
 	stderr.Reset()
-	requestAndCheck(t, "http://127.0.0.1:8000/panic", http.StatusInternalServerError, []byte(http.StatusText(http.StatusInternalServerError)+"\n"))
+	requestAndCheck(t, "http://"+server.Addr+"/panic", http.StatusInternalServerError, []byte(http.StatusText(http.StatusInternalServerError)+"\n"))
 	if !reForRequest.Match(stdout.Bytes()) {
 		t.Fatalf("request log should match %q is %q", reForRequest, stdout.Bytes())
 	}

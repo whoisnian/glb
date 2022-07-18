@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 
 	"github.com/whoisnian/glb/httpd"
@@ -44,23 +45,24 @@ func Example() {
 	mux.Handle("/test/say/:name/:msg", "POST", sayHandler)
 	mux.Handle("/test/any/*", "*", anyHandler)
 
-	server := &http.Server{Addr: ":8080", Handler: mux}
-	running := make(chan struct{})
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		panic(err)
+	}
+	server := &http.Server{Addr: ln.Addr().String(), Handler: mux}
 	go func() {
-		close(running)
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := server.Serve(ln); err != nil && err != http.ErrServerClosed {
 			panic(err)
 		}
 	}()
-	<-running
 	defer server.Shutdown(context.Background())
 
-	printResp(http.Get("http://127.0.0.1:8080/test/ping"))
-	printResp(http.Post("http://127.0.0.1:8080/test/say/cat/meow", "application/octet-stream", nil))
-	printResp(http.Get("http://127.0.0.1:8080/test/any/hello/world"))
+	printResp(http.Get("http://" + server.Addr + "/test/ping"))
+	printResp(http.Post("http://"+server.Addr+"/test/say/cat/meow", "application/octet-stream", nil))
+	printResp(http.Get("http://" + server.Addr + "/test/any/hello/world"))
 
-	// Output Example:
-	//   pong
-	//   cat say: meow
-	//   {"method":"GET","path":"hello/world"}
+	// Output:
+	// pong
+	// cat say: meow
+	// {"method":"GET","path":"hello/world"}
 }

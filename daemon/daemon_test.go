@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	tcpPongAddr = "127.0.0.1:8000"
+	tcpPongAddr = "127.0.0.1:58108"
 	tcpPongResp = []byte("pong")
 )
 
