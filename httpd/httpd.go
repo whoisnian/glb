@@ -4,26 +4,39 @@ package httpd
 import (
 	"errors"
 	"net/http"
-	"strings"
 	"sync"
 
 	"github.com/whoisnian/glb/util/strutil"
 )
 
+const (
+	MethodGet     = http.MethodGet
+	MethodHead    = http.MethodHead
+	MethodPost    = http.MethodPost
+	MethodPut     = http.MethodPut
+	MethodPatch   = http.MethodPatch
+	MethodDelete  = http.MethodDelete
+	MethodConnect = http.MethodConnect
+	MethodOptions = http.MethodOptions
+	MethodTrace   = http.MethodTrace
+	MethodAll     = "*"
+)
+
 const routeParam string = "/:param"
 const routeParamAny string = "/:any"
+const methodTagAll string = "/*"
 
-var methodList = map[string]string{
-	"GET":     "/get",
-	"HEAD":    "/head",
-	"POST":    "/post",
-	"PUT":     "/put",
-	"DELETE":  "/delete",
-	"CONNECT": "/connect",
-	"OPTIONS": "/options",
-	"TRACE":   "/trace",
-	"PATCH":   "/patch",
-	"*":       "/*",
+var methodTagMap = map[string]string{
+	http.MethodGet:     "/get",
+	http.MethodHead:    "/head",
+	http.MethodPost:    "/post",
+	http.MethodPut:     "/put",
+	http.MethodPatch:   "/patch",
+	http.MethodDelete:  "/delete",
+	http.MethodConnect: "/connect",
+	http.MethodOptions: "/options",
+	http.MethodTrace:   "/trace",
+	MethodAll:          methodTagAll,
 }
 
 type nodeData struct {
@@ -49,41 +62,44 @@ func (node *routeNode) nextNodeOrNew(name string) (res *routeNode) {
 }
 
 func (node *routeNode) methodNodeOrNil(method string) (res *routeNode) {
-	methodTag := methodList[method]
-	if res, ok := node.next[methodTag]; ok {
+	if res, ok := node.next[methodTagMap[method]]; ok {
 		return res
 	}
-	if res, ok := node.next[methodList["*"]]; ok {
+	if res, ok := node.next[methodTagAll]; ok {
 		return res
 	}
 	return nil
 }
 
 func parseRoute(node *routeNode, path string, method string) (*routeNode, []string, error) {
-	methodTag, ok := methodList[method]
+	methodTag, ok := methodTagMap[method]
 	if !ok {
 		return nil, nil, errors.New("invalid method " + method + " for routePath: " + path)
 	}
 
 	var paramNameList []string
-	fragments := strings.Split(path, "/")
-	for _, fragment := range fragments {
-		if len(fragment) < 1 {
+	var length, left, right int = len(path), 0, 0
+	for ; right <= length; right++ {
+		if right < length && path[right] != '/' {
 			continue
-		} else if fragment == "*" {
+		}
+		if right-left < 2 {
+			// continue
+		} else if path[left+1:right] == "*" {
 			paramNameList = append(paramNameList, routeParamAny)
 			node = node.nextNodeOrNew(routeParamAny)
 			break
-		} else if fragment[0] == ':' {
-			paramName := fragment[1:]
+		} else if path[left+1] == ':' {
+			paramName := path[left+2 : right]
 			if paramName == "" || strutil.SliceContain(paramNameList, paramName) {
-				return nil, nil, errors.New("invalid fragment " + fragment + " in routePath: " + path)
+				return nil, nil, errors.New("invalid fragment :" + paramName + " in routePath: " + path)
 			}
 			paramNameList = append(paramNameList, paramName)
 			node = node.nextNodeOrNew(routeParam)
 		} else {
-			node = node.nextNodeOrNew(fragment)
+			node = node.nextNodeOrNew(path[left+1 : right])
 		}
+		left = right
 	}
 
 	if _, ok = node.next[methodTag]; ok {
@@ -97,22 +113,26 @@ func parseRoute(node *routeNode, path string, method string) (*routeNode, []stri
 //   `/foo/bar/` will be matched by `/foo/bar/:param` or `/foo/bar/*`
 func findRoute(node *routeNode, path string, method string) (*routeNode, []string) {
 	var paramValueList []string
-	fragments := strings.Split(path, "/")
-	for i, fragment := range fragments {
-		if len(fragment) < 1 && i < len(fragments)-1 { // check routeParam if current is last fragment
+	var length, left, right int = len(path), 0, 0
+	for ; right <= length; right++ {
+		if right < length && path[right] != '/' {
 			continue
-		} else if res, ok := node.next[fragment]; ok {
+		}
+		if right-left < 2 && right < length { // check routeParam if current is last fragment
+			// continue
+		} else if res, ok := node.next[path[left+1:right]]; ok {
 			node = res
 		} else if res, ok := node.next[routeParam]; ok {
-			paramValueList = append(paramValueList, fragment)
+			paramValueList = append(paramValueList, path[left+1:right])
 			node = res
 		} else if res, ok := node.next[routeParamAny]; ok {
-			paramValueList = append(paramValueList, strings.Join(fragments[i:], "/"))
+			paramValueList = append(paramValueList, path[left+1:])
 			node = res
 			break
 		} else {
 			return nil, nil
 		}
+		left = right
 	}
 	return node.methodNodeOrNil(method), paramValueList
 }
