@@ -17,6 +17,8 @@ func TestRoute(t *testing.T) {
 		method string
 		url    string
 	}{
+		{"/", "GET", "/"},
+		{"/*", "GET", "/a"},
 		{"/aaa", "GET", "/aaa"},
 		{"/aaa/bbb", "GET", "/aaa///bbb"},
 		{"/ccc", "GET", "/ccc"},
@@ -75,6 +77,7 @@ func TestRouteParam(t *testing.T) {
 		paramK []string
 		paramV []string
 	}{
+		{"/*", "GET", "/", []string{routeParamAny}, []string{""}},
 		{"/aaa/:id", "GET", "/aaa/10", []string{"id"}, []string{"10"}},
 		{"/bbb/:id", "GET", "/bbb/10", []string{"id"}, []string{"10"}},
 		{"/bbb/ccc", "GET", "/bbb/ccc", []string{"none"}, []string{""}},
@@ -170,6 +173,7 @@ func TestServeHTTP(t *testing.T) {
 		code   int
 		mark   string
 	}{
+		{"/", "GET", 404, "404 page not found\n"},
 		{"/aaa", "GET", 200, "get_aaa"},
 		{"/aaa", "POST", 404, "404 page not found\n"},
 		{"/aaa/", "GET", 404, "404 page not found\n"},
