@@ -5,11 +5,27 @@ import (
 	"net/http"
 )
 
+// Params consists of a pair of key-value slice.
+type Params struct {
+	K, V []string
+}
+
+// Get gets the first param value associated with the given key.
+// The ok result indicates whether param was found.
+func (ps *Params) Get(key string) (value string, ok bool) {
+	for i := range ps.K {
+		if ps.K[i] == key {
+			return ps.V[i], true
+		}
+	}
+	return "", false
+}
+
 // Store consists of responseWriter, request and routeParams.
 type Store struct {
 	W http.ResponseWriter
 	R *http.Request
-	m map[string]string
+	P *Params
 }
 
 type HandlerFunc func(*Store)
@@ -20,11 +36,9 @@ func CreateHandler(httpHandler http.HandlerFunc) HandlerFunc {
 }
 
 // RouteParam returns the value of specified route param, or empty string if param not found.
-func (store *Store) RouteParam(name string) string {
-	if param, ok := store.m[name]; ok {
-		return param
-	}
-	return ""
+func (store *Store) RouteParam(name string) (value string) {
+	value, _ = store.P.Get(name)
+	return value
 }
 
 // RouteParamAny returns the value of route param "/*".

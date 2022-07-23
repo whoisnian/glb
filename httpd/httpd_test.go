@@ -31,14 +31,18 @@ func TestRoute(t *testing.T) {
 	}
 
 	root := new(routeNode)
+	var maxParams int = 0
 	for _, tt := range tests {
-		node, paramNameList, err := parseRoute(root, tt.path, tt.method)
+		paramsCnt, err := parseRoute(root, tt.path, tt.method, createTestHandlerFunc(tt.method+tt.path))
 		if err != nil {
 			t.Fatalf("parseRoute: %v", err)
 		}
-		node.data = &nodeData{createTestHandlerFunc(tt.method + tt.path), paramNameList}
+		if paramsCnt > maxParams {
+			maxParams = paramsCnt
+		}
 	}
 
+	params := Params{V: make([]string, 0, maxParams)}
 	for _, tt := range tests {
 		u, err := url.ParseRequestURI(tt.url)
 		if err != nil {
@@ -49,17 +53,14 @@ func TestRoute(t *testing.T) {
 		if method == "*" {
 			method = "CONNECT"
 		}
-		node, paramValueList := findRoute(root, u.Path, method)
-		if node == nil {
+		params.V = params.V[:0]
+		handler := findRoute(root, u.Path, method, &params)
+		if handler == nil {
 			t.Fatalf("routeNode for %q not found", tt.url)
 		}
 		w := &fakeResponseWriter{}
-		store := &Store{w, &http.Request{}, make(map[string]string)}
-		for i := range node.data.paramNameList {
-			store.m[node.data.paramNameList[i]] = paramValueList[i]
-		}
-
-		node.data.handler(store)
+		store := &Store{w, &http.Request{}, &params}
+		handler(store)
 		if w.code != http.StatusOK || w.buf.String() != tt.method+tt.path {
 			t.Fatalf("url %q match %q, want %q", tt.url, w.buf.String(), tt.method+tt.path)
 		}
@@ -85,28 +86,30 @@ func TestRouteParam(t *testing.T) {
 	}
 
 	root := new(routeNode)
+	var maxParams int = 0
 	for _, tt := range tests {
-		node, paramNameList, err := parseRoute(root, tt.path, tt.method)
+		paramsCnt, err := parseRoute(root, tt.path, tt.method, createTestHandlerFunc(tt.method+tt.path))
 		if err != nil {
 			t.Fatalf("parseRoute: %v", err)
 		}
-		node.data = &nodeData{createTestHandlerFunc(tt.method + tt.path), paramNameList}
+		if paramsCnt > maxParams {
+			maxParams = paramsCnt
+		}
 	}
 
+	params := Params{V: make([]string, 0, maxParams)}
 	for _, tt := range tests {
 		u, err := url.ParseRequestURI(tt.url)
 		if err != nil {
 			t.Fatalf("ParseRequestURI: %v", err)
 		}
 
-		node, paramValueList := findRoute(root, u.Path, tt.method)
+		params.V = params.V[:0]
+		node := findRoute(root, u.Path, tt.method, &params)
 		if node == nil {
 			t.Fatalf("routeNode for %q not found", tt.url)
 		}
-		store := &Store{nil, nil, make(map[string]string)}
-		for i := range node.data.paramNameList {
-			store.m[node.data.paramNameList[i]] = paramValueList[i]
-		}
+		store := &Store{P: &params}
 
 		var v string
 		for i, k := range tt.paramK {
@@ -168,18 +171,18 @@ func TestServeHTTP(t *testing.T) {
 		mark   string
 	}{
 		{"/aaa", "GET", 200, "get_aaa"},
-		{"/aaa", "POST", 404, "Route not found\n"},
-		{"/aaa/", "GET", 404, "Route not found\n"},
-		{"/bbb", "POST", 404, "Route not found\n"},
+		{"/aaa", "POST", 404, "404 page not found\n"},
+		{"/aaa/", "GET", 404, "404 page not found\n"},
+		{"/bbb", "POST", 404, "404 page not found\n"},
 		{"/bbb/", "POST", 200, "post_bbb"},
 		{"/bbb/10", "POST", 200, "post_bbb"},
 		{"/ccc", "GET", 200, "get_ccc"},
 		{"/ccc", "CONNECT", 200, "any_ccc"},
-		{"/ddd", "PUT", 404, "Route not found\n"},
+		{"/ddd", "PUT", 404, "404 page not found\n"},
 		{"/ddd/", "PUT", 200, "put_ddd"},
 		{"/ddd/10", "PUT", 200, "put_ddd"},
 		{"/ddd/eee", "PUT", 200, "put_ddd_eee"},
-		{"/fff", "GET", 404, "Route not found\n"},
+		{"/fff", "GET", 404, "404 page not found\n"},
 	}
 
 	mux := NewMux()

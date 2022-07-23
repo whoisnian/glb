@@ -27,54 +27,50 @@ const routeParamAny string = "/:any"
 const methodTagAll string = "/*"
 
 var methodTagMap = map[string]string{
-	http.MethodGet:     "/get",
-	http.MethodHead:    "/head",
-	http.MethodPost:    "/post",
-	http.MethodPut:     "/put",
-	http.MethodPatch:   "/patch",
-	http.MethodDelete:  "/delete",
-	http.MethodConnect: "/connect",
-	http.MethodOptions: "/options",
-	http.MethodTrace:   "/trace",
-	MethodAll:          methodTagAll,
+	MethodGet:     "/get",
+	MethodHead:    "/head",
+	MethodPost:    "/post",
+	MethodPut:     "/put",
+	MethodPatch:   "/patch",
+	MethodDelete:  "/delete",
+	MethodConnect: "/connect",
+	MethodOptions: "/options",
+	MethodTrace:   "/trace",
+	MethodAll:     methodTagAll,
 }
 
-type nodeData struct {
+type routeNode struct {
+	next          map[string]*routeNode
 	handler       HandlerFunc
 	paramNameList []string
 }
 
-type routeNode struct {
-	next map[string]*routeNode
-	data *nodeData
-}
-
-func (node *routeNode) nextNodeOrNew(name string) (res *routeNode) {
-	if res, ok := node.next[name]; ok {
-		return res
+func (node *routeNode) nextNodeOrNew(name string) (resNode *routeNode) {
+	if resNode, ok := node.next[name]; ok {
+		return resNode
 	}
 	if node.next == nil {
 		node.next = make(map[string]*routeNode)
 	}
-	res = new(routeNode)
-	node.next[name] = res
-	return res
+	resNode = new(routeNode)
+	node.next[name] = resNode
+	return resNode
 }
 
-func (node *routeNode) methodNodeOrNil(method string) (res *routeNode) {
-	if res, ok := node.next[methodTagMap[method]]; ok {
-		return res
+func (node *routeNode) methodNodeOrNil(method string) (resNode *routeNode) {
+	if resNode, ok := node.next[methodTagMap[method]]; ok {
+		return resNode
 	}
-	if res, ok := node.next[methodTagAll]; ok {
-		return res
+	if resNode, ok := node.next[methodTagAll]; ok {
+		return resNode
 	}
 	return nil
 }
 
-func parseRoute(node *routeNode, path string, method string) (*routeNode, []string, error) {
+func parseRoute(node *routeNode, path string, method string, handler HandlerFunc) (paramsCnt int, err error) {
 	methodTag, ok := methodTagMap[method]
 	if !ok {
-		return nil, nil, errors.New("invalid method " + method + " for routePath: " + path)
+		return 0, errors.New("invalid method " + method + " for routePath: " + path)
 	}
 
 	var paramNameList []string
@@ -92,7 +88,7 @@ func parseRoute(node *routeNode, path string, method string) (*routeNode, []stri
 		} else if path[left+1] == ':' {
 			paramName := path[left+2 : right]
 			if paramName == "" || strutil.SliceContain(paramNameList, paramName) {
-				return nil, nil, errors.New("invalid fragment :" + paramName + " in routePath: " + path)
+				return 0, errors.New("invalid fragment :" + paramName + " in routePath: " + path)
 			}
 			paramNameList = append(paramNameList, paramName)
 			node = node.nextNodeOrNew(routeParam)
@@ -103,16 +99,18 @@ func parseRoute(node *routeNode, path string, method string) (*routeNode, []stri
 	}
 
 	if _, ok = node.next[methodTag]; ok {
-		return nil, nil, errors.New("duplicate method " + method + " for routePath: " + path)
+		return 0, errors.New("duplicate method " + method + " for routePath: " + path)
 	}
-	return node.nextNodeOrNew(methodTag), paramNameList, nil
+	node = node.nextNodeOrNew(methodTag)
+	node.handler = handler
+	node.paramNameList = paramNameList
+	return len(paramNameList), nil
 }
 
 // about trailing slash:
 //   `/foo/bar`  will be matched by `/foo/bar`
 //   `/foo/bar/` will be matched by `/foo/bar/:param` or `/foo/bar/*`
-func findRoute(node *routeNode, path string, method string) (*routeNode, []string) {
-	var paramValueList []string
+func findRoute(node *routeNode, path string, method string, params *Params) (handler HandlerFunc) {
 	var length, left, right int = len(path), 0, 0
 	for ; right <= length; right++ {
 		if right < length && path[right] != '/' {
@@ -123,45 +121,66 @@ func findRoute(node *routeNode, path string, method string) (*routeNode, []strin
 		} else if res, ok := node.next[path[left+1:right]]; ok {
 			node = res
 		} else if res, ok := node.next[routeParam]; ok {
-			paramValueList = append(paramValueList, path[left+1:right])
+			i := len(params.V)
+			params.V = params.V[:i+1]
+			params.V[i] = path[left+1 : right]
 			node = res
 		} else if res, ok := node.next[routeParamAny]; ok {
-			paramValueList = append(paramValueList, path[left+1:])
+			i := len(params.V)
+			params.V = params.V[:i+1]
+			params.V[i] = path[left+1:]
 			node = res
 			break
 		} else {
-			return nil, nil
+			return nil
 		}
 		left = right
 	}
-	return node.methodNodeOrNil(method), paramValueList
+	if node = node.methodNodeOrNil(method); node != nil {
+		params.K = node.paramNameList
+		return node.handler
+	} else {
+		return nil
+	}
 }
 
 type Mux struct {
 	mu   sync.RWMutex
 	root *routeNode
+
+	maxParams int
+	storePool sync.Pool
+
+	NotFound http.HandlerFunc
 }
 
 // NewMux allocates and returns a new Mux.
 func NewMux() *Mux {
-	return &Mux{root: new(routeNode)}
+	mux := &Mux{root: new(routeNode), NotFound: http.NotFound}
+	mux.storePool.New = mux.newStore
+	return mux
+}
+
+func (mux *Mux) newStore() any {
+	params := Params{V: make([]string, 0, mux.maxParams)}
+	return &Store{P: &params}
 }
 
 // ServeHTTP dispatches the request to the matched handler.
 func (mux *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	store := &Store{w, r, make(map[string]string)}
+	store := mux.storePool.Get().(*Store)
+	store.W = w
+	store.R = r
+	store.P.V = store.P.V[:0]
 
-	node, paramValueList := findRoute(mux.root, r.URL.Path, r.Method)
-	if node == nil {
-		store.Error404("Route not found")
-		return
+	handler := findRoute(mux.root, r.URL.Path, r.Method, store.P)
+	if handler == nil {
+		mux.NotFound(w, r)
+	} else {
+		handler(store)
 	}
 
-	for i := range node.data.paramNameList {
-		store.m[node.data.paramNameList[i]] = paramValueList[i]
-	}
-
-	node.data.handler(store)
+	mux.storePool.Put(store)
 }
 
 // Handle registers the handler for the given routePath and method.
@@ -169,9 +188,12 @@ func (mux *Mux) Handle(path string, method string, handler HandlerFunc) {
 	mux.mu.Lock()
 	defer mux.mu.Unlock()
 
-	node, paramNameList, err := parseRoute(mux.root, path, method)
+	paramsCnt, err := parseRoute(mux.root, path, method, handler)
 	if err != nil {
 		panic(err)
 	}
-	node.data = &nodeData{handler, paramNameList}
+
+	if paramsCnt > mux.maxParams {
+		mux.maxParams = paramsCnt
+	}
 }
