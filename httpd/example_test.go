@@ -41,9 +41,9 @@ func printResp(resp *http.Response, err error) {
 
 func Example() {
 	mux := httpd.NewMux()
-	mux.Handle("/test/ping", "GET", pingHandler)
-	mux.Handle("/test/say/:name/:msg", "POST", sayHandler)
-	mux.Handle("/test/any/*", "*", anyHandler)
+	mux.Handle("/test/ping", http.MethodGet, pingHandler)
+	mux.Handle("/test/say/:name/:msg", http.MethodPost, sayHandler)
+	mux.Handle("/test/any/*", httpd.MethodAll, anyHandler)
 
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {

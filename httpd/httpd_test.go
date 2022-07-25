@@ -17,19 +17,19 @@ func TestRoute(t *testing.T) {
 		method string
 		url    string
 	}{
-		{"/", "GET", "/"},
-		{"/*", "GET", "/a"},
-		{"/aaa", "GET", "/aaa"},
-		{"/aaa/bbb", "GET", "/aaa///bbb"},
-		{"/ccc", "GET", "/ccc"},
-		{"/ccc", "POST", "/ccc"},
-		{"/ccc", "DELETE", "/ccc"},
-		{"/ddd", "*", "/ddd"},
-		{"/ddd", "PUT", "/ddd"},
-		{"/eee/:id", "POST", "/eee/10"},
-		{"/fff/*", "POST", "/fff/any"},
-		{"/ggg", "GET", "/ggg"},
-		{"/ggg/*", "GET", "/ggg/"},
+		{"/", http.MethodGet, "/"},
+		{"/*", http.MethodGet, "/a"},
+		{"/aaa", http.MethodGet, "/aaa"},
+		{"/aaa/bbb", http.MethodGet, "/aaa///bbb"},
+		{"/ccc", http.MethodGet, "/ccc"},
+		{"/ccc", http.MethodPost, "/ccc"},
+		{"/ccc", http.MethodDelete, "/ccc"},
+		{"/ddd", MethodAll, "/ddd"},
+		{"/ddd", http.MethodPut, "/ddd"},
+		{"/eee/:id", http.MethodPost, "/eee/10"},
+		{"/fff/*", http.MethodPost, "/fff/any"},
+		{"/ggg", http.MethodGet, "/ggg"},
+		{"/ggg/*", http.MethodGet, "/ggg/"},
 	}
 
 	root := new(routeNode)
@@ -77,15 +77,15 @@ func TestRouteParam(t *testing.T) {
 		paramK []string
 		paramV []string
 	}{
-		{"/*", "GET", "/", []string{routeParamAny}, []string{""}},
-		{"/aaa/:id", "GET", "/aaa/10", []string{"id"}, []string{"10"}},
-		{"/bbb/:id", "GET", "/bbb/10", []string{"id"}, []string{"10"}},
-		{"/bbb/ccc", "GET", "/bbb/ccc", []string{"none"}, []string{""}},
-		{"/ccc/:id1/:id2/ddd", "GET", "/ccc/10/20/ddd", []string{"id1", "id2"}, []string{"10", "20"}},
-		{"/ccc/:id1/ddd/:id2", "GET", "/ccc/10/ddd/20", []string{"id1", "id2"}, []string{"10", "20"}},
-		{"/eee/:id", "GET", "/eee/10", []string{"id"}, []string{"10"}},
-		{"/eee/:id1/:id2", "GET", "/eee/10/20", []string{"id1", "id2"}, []string{"10", "20"}},
-		{"/fff/*", "GET", "/fff/1/2/3", []string{routeParamAny}, []string{"1/2/3"}},
+		{"/*", http.MethodGet, "/", []string{routeParamAny}, []string{""}},
+		{"/aaa/:id", http.MethodGet, "/aaa/10", []string{"id"}, []string{"10"}},
+		{"/bbb/:id", http.MethodGet, "/bbb/10", []string{"id"}, []string{"10"}},
+		{"/bbb/ccc", http.MethodGet, "/bbb/ccc", []string{"none"}, []string{""}},
+		{"/ccc/:id1/:id2/ddd", http.MethodGet, "/ccc/10/20/ddd", []string{"id1", "id2"}, []string{"10", "20"}},
+		{"/ccc/:id1/ddd/:id2", http.MethodGet, "/ccc/10/ddd/20", []string{"id1", "id2"}, []string{"10", "20"}},
+		{"/eee/:id", http.MethodGet, "/eee/10", []string{"id"}, []string{"10"}},
+		{"/eee/:id1/:id2", http.MethodGet, "/eee/10/20", []string{"id1", "id2"}, []string{"10", "20"}},
+		{"/fff/*", http.MethodGet, "/fff/1/2/3", []string{routeParamAny}, []string{"1/2/3"}},
 	}
 
 	root := new(routeNode)
@@ -134,14 +134,14 @@ func TestHandlePanic(t *testing.T) {
 		path   string
 		method string
 	}{
-		{"duplicatedRoute", "/aaa", "GET"},
-		{"duplicatedParam", "/bbb/:id/:id", "GET"},
-		{"invalidPath", "/ccc/:/", "GET"},
+		{"duplicatedRoute", "/aaa", http.MethodGet},
+		{"duplicatedParam", "/bbb/:id/:id", http.MethodGet},
+		{"invalidPath", "/ccc/:/", http.MethodGet},
 		{"invalidMethod", "/ddd", "GETT"},
 	}
 
 	mux := NewMux()
-	mux.Handle("/aaa", "GET", noop)
+	mux.Handle("/aaa", http.MethodGet, noop)
 	for _, tt := range tests {
 		subtest := func(t *testing.T) {
 			defer func() { _ = recover() }()
@@ -160,12 +160,12 @@ func TestServeHTTP(t *testing.T) {
 		method string
 		mark   string
 	}{
-		{"/aaa", "GET", "get_aaa"},
-		{"/bbb/:id", "POST", "post_bbb"},
-		{"/ccc", "*", "any_ccc"},
-		{"/ccc", "GET", "get_ccc"},
-		{"/ddd/*", "PUT", "put_ddd"},
-		{"/ddd/eee", "PUT", "put_ddd_eee"},
+		{"/aaa", http.MethodGet, "get_aaa"},
+		{"/bbb/:id", http.MethodPost, "post_bbb"},
+		{"/ccc", MethodAll, "any_ccc"},
+		{"/ccc", http.MethodGet, "get_ccc"},
+		{"/ddd/*", http.MethodPut, "put_ddd"},
+		{"/ddd/eee", http.MethodPut, "put_ddd_eee"},
 	}
 	tests := []struct {
 		url    string
@@ -173,20 +173,20 @@ func TestServeHTTP(t *testing.T) {
 		code   int
 		mark   string
 	}{
-		{"/", "GET", 404, "404 page not found\n"},
-		{"/aaa", "GET", 200, "get_aaa"},
-		{"/aaa", "POST", 404, "404 page not found\n"},
-		{"/aaa/", "GET", 404, "404 page not found\n"},
-		{"/bbb", "POST", 404, "404 page not found\n"},
-		{"/bbb/", "POST", 200, "post_bbb"},
-		{"/bbb/10", "POST", 200, "post_bbb"},
-		{"/ccc", "GET", 200, "get_ccc"},
-		{"/ccc", "CONNECT", 200, "any_ccc"},
-		{"/ddd", "PUT", 404, "404 page not found\n"},
-		{"/ddd/", "PUT", 200, "put_ddd"},
-		{"/ddd/10", "PUT", 200, "put_ddd"},
-		{"/ddd/eee", "PUT", 200, "put_ddd_eee"},
-		{"/fff", "GET", 404, "404 page not found\n"},
+		{"/", http.MethodGet, 404, "404 page not found\n"},
+		{"/aaa", http.MethodGet, 200, "get_aaa"},
+		{"/aaa", http.MethodPost, 404, "404 page not found\n"},
+		{"/aaa/", http.MethodGet, 404, "404 page not found\n"},
+		{"/bbb", http.MethodPost, 404, "404 page not found\n"},
+		{"/bbb/", http.MethodPost, 200, "post_bbb"},
+		{"/bbb/10", http.MethodPost, 200, "post_bbb"},
+		{"/ccc", http.MethodGet, 200, "get_ccc"},
+		{"/ccc", http.MethodConnect, 200, "any_ccc"},
+		{"/ddd", http.MethodPut, 404, "404 page not found\n"},
+		{"/ddd/", http.MethodPut, 200, "put_ddd"},
+		{"/ddd/10", http.MethodPut, 200, "put_ddd"},
+		{"/ddd/eee", http.MethodPut, 200, "put_ddd_eee"},
+		{"/fff", http.MethodGet, 404, "404 page not found\n"},
 	}
 
 	mux := NewMux()

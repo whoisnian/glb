@@ -9,34 +9,21 @@ import (
 	"github.com/whoisnian/glb/util/strutil"
 )
 
-const (
-	MethodGet     = http.MethodGet
-	MethodHead    = http.MethodHead
-	MethodPost    = http.MethodPost
-	MethodPut     = http.MethodPut
-	MethodPatch   = http.MethodPatch
-	MethodDelete  = http.MethodDelete
-	MethodConnect = http.MethodConnect
-	MethodOptions = http.MethodOptions
-	MethodTrace   = http.MethodTrace
-	MethodAll     = "*"
-)
-
 const routeParam string = "/:param"
 const routeParamAny string = "/:any"
-const methodTagAll string = "/*"
+const MethodAll string = "*"
 
 var methodTagMap = map[string]string{
-	MethodGet:     "/get",
-	MethodHead:    "/head",
-	MethodPost:    "/post",
-	MethodPut:     "/put",
-	MethodPatch:   "/patch",
-	MethodDelete:  "/delete",
-	MethodConnect: "/connect",
-	MethodOptions: "/options",
-	MethodTrace:   "/trace",
-	MethodAll:     methodTagAll,
+	http.MethodGet:     "/get",
+	http.MethodHead:    "/head",
+	http.MethodPost:    "/post",
+	http.MethodPut:     "/put",
+	http.MethodPatch:   "/patch",
+	http.MethodDelete:  "/delete",
+	http.MethodConnect: "/connect",
+	http.MethodOptions: "/options",
+	http.MethodTrace:   "/trace",
+	MethodAll:          "/*",
 }
 
 type routeNode struct {
@@ -61,7 +48,7 @@ func (node *routeNode) methodNodeOrNil(method string) (resNode *routeNode) {
 	if resNode, ok := node.next[methodTagMap[method]]; ok {
 		return resNode
 	}
-	if resNode, ok := node.next[methodTagAll]; ok {
+	if resNode, ok := node.next["/*"]; ok {
 		return resNode
 	}
 	return nil
