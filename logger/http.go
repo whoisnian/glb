@@ -8,6 +8,7 @@ import (
 	"time"
 )
 
+// loggerResponseWriter records request start time and response status with http.ResponseWriter.
 type loggerResponseWriter struct {
 	w      http.ResponseWriter
 	status int
@@ -36,8 +37,8 @@ func (lw *loggerResponseWriter) Flush() {
 	}
 }
 
-// Example:
-//   if err := http.ListenAndServe(":8080", logger.Req(http.DefaultServeMux)); err != nil {
+// Req wraps http.Handler and writes request log to stdout with tagR. Example:
+//   if err := http.ListenAndServe(":8000", logger.Req(http.DefaultServeMux)); err != nil {
 //       logger.Fatal(err)
 //   }
 func Req(handler http.Handler) http.Handler {
@@ -54,8 +55,12 @@ func Req(handler http.Handler) http.Handler {
 	})
 }
 
-// Example:
-//   if err := http.ListenAndServe(":8080", logger.Recovery(http.DefaultServeMux)); err != nil {
+// Recovery wraps http.Handler and writes panic log to stderr with tagE. Example:
+//   if err := http.ListenAndServe(":8000", logger.Recovery(http.DefaultServeMux)); err != nil {
+//       logger.Fatal(err)
+//   }
+// If want use Recovery with Req, it should be like:
+//   if err := http.ListenAndServe(":8000", logger.Req(logger.Recovery(http.DefaultServeMux))); err != nil {
 //       logger.Fatal(err)
 //   }
 func Recovery(handler http.Handler) http.Handler {
@@ -67,8 +72,8 @@ func Recovery(handler http.Handler) http.Handler {
 				buf := make([]byte, size)
 				buf = buf[:runtime.Stack(buf, false)]
 
-				lout.Output(2, tagE+" panic: "+fmt.Sprint(err)+"\n"+string(buf))
-				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+				lerr.Output(2, tagE+" panic: "+fmt.Sprint(err)+"\n"+string(buf))
+				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			}
 		}()
 		handler.ServeHTTP(w, r)

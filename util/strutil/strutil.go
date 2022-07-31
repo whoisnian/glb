@@ -33,5 +33,5 @@ func IsDigitString(s string) bool {
 			return false
 		}
 	}
-	return true
+	return s != ""
 }

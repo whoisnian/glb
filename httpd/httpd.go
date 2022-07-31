@@ -4,8 +4,6 @@ package httpd
 import (
 	"errors"
 	"net/http"
-	"net/url"
-	"strings"
 	"sync"
 
 	"github.com/whoisnian/glb/util/strutil"
@@ -13,143 +11,171 @@ import (
 
 const routeParam string = "/:param"
 const routeParamAny string = "/:any"
+const MethodAll string = "*"
 
-var methodList = map[string]string{
-	"GET":     "/get",
-	"HEAD":    "/head",
-	"POST":    "/post",
-	"PUT":     "/put",
-	"DELETE":  "/delete",
-	"CONNECT": "/connect",
-	"OPTIONS": "/options",
-	"TRACE":   "/trace",
-	"PATCH":   "/patch",
-	"*":       "/*",
+var methodTagMap = map[string]string{
+	http.MethodGet:     "/get",
+	http.MethodHead:    "/head",
+	http.MethodPost:    "/post",
+	http.MethodPut:     "/put",
+	http.MethodPatch:   "/patch",
+	http.MethodDelete:  "/delete",
+	http.MethodConnect: "/connect",
+	http.MethodOptions: "/options",
+	http.MethodTrace:   "/trace",
+	MethodAll:          "/*",
 }
 
-type nodeData struct {
+type routeNode struct {
+	next          map[string]*routeNode
 	handler       HandlerFunc
 	paramNameList []string
 }
 
-type routeNode struct {
-	next map[string]*routeNode
-	data *nodeData
-}
-
-func (node *routeNode) nextNodeOrNew(name string) (res *routeNode) {
-	if res, ok := node.next[name]; ok {
-		return res
+func (node *routeNode) nextNodeOrNew(name string) (resNode *routeNode) {
+	if resNode, ok := node.next[name]; ok {
+		return resNode
 	}
 	if node.next == nil {
 		node.next = make(map[string]*routeNode)
 	}
-	res = new(routeNode)
-	node.next[name] = res
-	return res
+	resNode = new(routeNode)
+	node.next[name] = resNode
+	return resNode
 }
 
-func (node *routeNode) methodNodeOrNil(method string) (res *routeNode) {
-	methodTag := methodList[method]
-	if res, ok := node.next[methodTag]; ok {
-		return res
+func (node *routeNode) methodNodeOrNil(method string) (resNode *routeNode) {
+	if resNode, ok := node.next[methodTagMap[method]]; ok {
+		return resNode
 	}
-	if res, ok := node.next[methodList["*"]]; ok {
-		return res
+	if resNode, ok := node.next["/*"]; ok {
+		return resNode
 	}
 	return nil
 }
 
-func parseRoute(node *routeNode, path string, method string) (*routeNode, []string) {
+func parseRoute(node *routeNode, path string, method string, handler HandlerFunc) (paramsCnt int, err error) {
+	methodTag, ok := methodTagMap[method]
+	if !ok {
+		return 0, errors.New("invalid method " + method + " for routePath: " + path)
+	}
+
 	var paramNameList []string
-	fragments := strings.Split(path, "/")
-	for i := range fragments {
-		if len(fragments[i]) < 1 {
+	var length, left, right int = len(path), 0, 0
+	for ; right <= length; right++ {
+		if right < length && path[right] != '/' {
 			continue
-		} else if fragments[i] == "*" {
+		}
+		if right-left < 2 {
+			// continue
+		} else if path[left+1:right] == "*" {
 			paramNameList = append(paramNameList, routeParamAny)
 			node = node.nextNodeOrNew(routeParamAny)
 			break
-		} else if fragments[i][0] == ':' {
-			paramName := fragments[i][1:]
+		} else if path[left+1] == ':' {
+			paramName := path[left+2 : right]
 			if paramName == "" || strutil.SliceContain(paramNameList, paramName) {
-				panic(errors.New("Invalid fragment '" + fragments[i] + "' in routePath: '" + path + "'"))
+				return 0, errors.New("invalid fragment :" + paramName + " in routePath: " + path)
 			}
 			paramNameList = append(paramNameList, paramName)
 			node = node.nextNodeOrNew(routeParam)
 		} else {
-			node = node.nextNodeOrNew(fragments[i])
+			node = node.nextNodeOrNew(path[left+1 : right])
 		}
+		left = right
 	}
 
-	methodTag, ok := methodList[method]
-	if !ok {
-		panic(errors.New("Invalid method '" + method + "' for routePath: '" + path + "'"))
-	}
 	if _, ok = node.next[methodTag]; ok {
-		panic(errors.New("Duplicate method '" + method + "' for routePath: '" + path + "'"))
+		return 0, errors.New("duplicate method " + method + " for routePath: " + path)
 	}
-	return node.nextNodeOrNew(methodTag), paramNameList
+	node = node.nextNodeOrNew(methodTag)
+	node.handler = handler
+	node.paramNameList = paramNameList
+	return len(paramNameList), nil
 }
 
 // about trailing slash:
-//   use `/foo/bar` to match `/foo/bar`
-//   use `/foo/bar/*` to match `/foo/bar/`
-func findRoute(node *routeNode, path string, method string) (*routeNode, []string) {
-	var paramValueList []string
-	fragments := strings.Split(path, "/")
-	for i := range fragments {
-		if len(fragments[i]) < 1 && i < len(fragments)-1 {
+//   `/foo/bar`  will be matched by `/foo/bar`
+//   `/foo/bar/` will be matched by `/foo/bar/:param` or `/foo/bar/*`
+//   `/`         will be matched by `/` first and then `/:param` or `/*`
+func findRoute(node *routeNode, path string, method string, params *Params) (handler HandlerFunc) {
+	var length, left, right int = len(path), 0, 0
+	if length == 1 {
+		if n := node.methodNodeOrNil(method); n != nil {
+			// if `/` is matched by `/`, skip `/:param` and `/*`
+			params.K = n.paramNameList
+			return n.handler
+		}
+	}
+	for ; right <= length; right++ {
+		if right < length && path[right] != '/' {
 			continue
-		} else if res, ok := node.next[fragments[i]]; ok {
+		}
+		if right-left < 2 && right < length { // check routeParam if current is last fragment
+			// continue
+		} else if res, ok := node.next[path[left+1:right]]; ok {
 			node = res
 		} else if res, ok := node.next[routeParam]; ok {
-			value, err := url.PathUnescape(fragments[i])
-			if err != nil {
-				// logger.Error("Invalid fragment '", fragments[i], "' in routePath: '", path, "'")
-				return nil, nil
-			}
-			paramValueList = append(paramValueList, value)
+			i := len(params.V)
+			params.V = params.V[:i+1]
+			params.V[i] = path[left+1 : right]
 			node = res
 		} else if res, ok := node.next[routeParamAny]; ok {
-			value, err := url.PathUnescape(strings.Join(fragments[i:], "/"))
-			if err != nil {
-				// logger.Error("Invalid fragment '", fragments[i], "' in routePath: '", path, "'")
-				return nil, nil
-			}
-			paramValueList = append(paramValueList, value)
+			i := len(params.V)
+			params.V = params.V[:i+1]
+			params.V[i] = path[left+1:]
 			node = res
 			break
 		} else {
-			return nil, nil
+			return nil
 		}
+		left = right
 	}
-	return node.methodNodeOrNil(method), paramValueList
+	if node = node.methodNodeOrNil(method); node != nil {
+		params.K = node.paramNameList
+		return node.handler
+	} else {
+		return nil
+	}
 }
 
 type Mux struct {
 	mu   sync.RWMutex
 	root *routeNode
+
+	maxParams int
+	storePool sync.Pool
+
+	NotFound http.HandlerFunc
 }
 
+// NewMux allocates and returns a new Mux.
 func NewMux() *Mux {
-	return &Mux{root: new(routeNode)}
+	mux := &Mux{root: new(routeNode), NotFound: http.NotFound}
+	mux.storePool.New = mux.newStore
+	return mux
 }
 
+func (mux *Mux) newStore() any {
+	params := Params{V: make([]string, 0, mux.maxParams)}
+	return &Store{P: &params}
+}
+
+// ServeHTTP dispatches the request to the matched handler.
 func (mux *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	store := &Store{w, r, make(map[string]string)}
+	store := mux.storePool.Get().(*Store)
+	store.W = w
+	store.R = r
+	store.P.V = store.P.V[:0]
 
-	node, paramValueList := findRoute(mux.root, r.URL.EscapedPath(), r.Method)
-	if node == nil {
-		store.Error404("Route not found")
-		return
+	handler := findRoute(mux.root, r.URL.Path, r.Method, store.P)
+	if handler == nil {
+		mux.NotFound(w, r)
+	} else {
+		handler(store)
 	}
 
-	for i := range node.data.paramNameList {
-		store.m[node.data.paramNameList[i]] = paramValueList[i]
-	}
-
-	node.data.handler(store)
+	mux.storePool.Put(store)
 }
 
 // Handle registers the handler for the given routePath and method.
@@ -157,6 +183,12 @@ func (mux *Mux) Handle(path string, method string, handler HandlerFunc) {
 	mux.mu.Lock()
 	defer mux.mu.Unlock()
 
-	node, paramNameList := parseRoute(mux.root, path, method)
-	node.data = &nodeData{handler, paramNameList}
+	paramsCnt, err := parseRoute(mux.root, path, method, handler)
+	if err != nil {
+		panic(err)
+	}
+
+	if paramsCnt > mux.maxParams {
+		mux.maxParams = paramsCnt
+	}
 }

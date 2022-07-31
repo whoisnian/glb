@@ -1,6 +1,10 @@
 package httpd_test
 
 import (
+	"context"
+	"fmt"
+	"io"
+	"net"
 	"net/http"
 
 	"github.com/whoisnian/glb/httpd"
@@ -25,21 +29,40 @@ func anyHandler(store *httpd.Store) {
 	})
 }
 
+func printResp(resp *http.Response, err error) {
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		data, _ := io.ReadAll(resp.Body)
+		defer resp.Body.Close()
+		fmt.Println(string(data))
+	}
+}
+
 func Example() {
 	mux := httpd.NewMux()
-	mux.Handle("/test/ping", "GET", pingHandler)
-	mux.Handle("/test/say/:name/:msg", "POST", sayHandler)
-	mux.Handle("/test/any/*", "*", anyHandler)
+	mux.Handle("/test/ping", http.MethodGet, pingHandler)
+	mux.Handle("/test/say/:name/:msg", http.MethodPost, sayHandler)
+	mux.Handle("/test/any/*", httpd.MethodAll, anyHandler)
 
-	if err := http.ListenAndServe(":8080", mux); err != nil {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
 		panic(err)
 	}
+	server := &http.Server{Addr: ln.Addr().String(), Handler: mux}
+	go func() {
+		if err := server.Serve(ln); err != nil && err != http.ErrServerClosed {
+			panic(err)
+		}
+	}()
+	defer server.Shutdown(context.Background())
 
-	// Output examples:
-	// curl http://127.0.0.1:8080/test/ping
-	//   pong
-	// curl -X POST http://127.0.0.1:8080/test/say/cat/meow
-	//   cat say: meow
-	// curl -X PUT http://127.0.0.1:8080/test/any/hello/world
-	//   {"method":"PUT","path":"hello/world"}
+	printResp(http.Get("http://" + server.Addr + "/test/ping"))
+	printResp(http.Post("http://"+server.Addr+"/test/say/cat/meow", "application/octet-stream", nil))
+	printResp(http.Get("http://" + server.Addr + "/test/any/hello/world"))
+
+	// Output:
+	// pong
+	// cat say: meow
+	// {"method":"GET","path":"hello/world"}
 }

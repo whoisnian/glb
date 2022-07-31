@@ -1,22 +1,11 @@
-package netutil
+package netutil_test
 
 import (
-	"bytes"
-	"fmt"
-	"math/rand"
 	"net"
-	"sync"
-	"sync/atomic"
 	"testing"
-	"time"
+
+	"github.com/whoisnian/glb/util/netutil"
 )
-
-var TEST_SEED int64
-
-func init() {
-	TEST_SEED = time.Now().Unix()
-	fmt.Printf("Running with rand seed %v\n", TEST_SEED)
-}
 
 var cidrRangeTests = []struct {
 	in   string
@@ -44,7 +33,7 @@ var cidrRangeTests = []struct {
 func TestFirstIP(t *testing.T) {
 	for _, tt := range cidrRangeTests {
 		_, cidr, _ := net.ParseCIDR(tt.in)
-		if out := FirstIP(cidr); !out.Equal(tt.from) {
+		if out := netutil.FirstIP(cidr); !out.Equal(tt.from) {
 			t.Errorf("CIDR(%v).FirstIP = %v, want %v", tt.in, out, tt.from)
 		}
 	}
@@ -53,123 +42,8 @@ func TestFirstIP(t *testing.T) {
 func TestLastIP(t *testing.T) {
 	for _, tt := range cidrRangeTests {
 		_, cidr, _ := net.ParseCIDR(tt.in)
-		if out := LastIP(cidr); !out.Equal(tt.to) {
+		if out := netutil.LastIP(cidr); !out.Equal(tt.to) {
 			t.Errorf("CIDR(%v).LastIP = %v, want %v", tt.in, out, tt.to)
 		}
-	}
-}
-
-type SimpleList struct {
-	mutex    sync.RWMutex
-	matchAll uint32
-	list     []net.IPNet
-}
-
-func NewSimpleList() *SimpleList {
-	return &SimpleList{}
-}
-
-func (s *SimpleList) Add(cidr *net.IPNet) error {
-	ones, _ := cidr.Mask.Size()
-	if ones == 0 {
-		atomic.StoreUint32(&s.matchAll, 1)
-		return nil
-	}
-
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-	s.list = append(s.list, net.IPNet{IP: cidr.IP.Mask(cidr.Mask), Mask: append([]byte(nil), cidr.Mask...)})
-	return nil
-}
-
-func (s *SimpleList) Remove(cidr *net.IPNet) error {
-	ones, _ := cidr.Mask.Size()
-	if ones == 0 {
-		atomic.StoreUint32(&s.matchAll, 0)
-		return nil
-	}
-
-	firstIP := cidr.IP.Mask(cidr.Mask)
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-	for i := range s.list {
-		if bytes.Equal(cidr.Mask, s.list[i].Mask) && firstIP.Equal(s.list[i].IP) {
-			s.list[i] = net.IPNet{IP: net.IPv4zero, Mask: []byte{}} // reset to invalid CIDR
-		}
-	}
-	return nil
-}
-
-func (s *SimpleList) Contains(ip net.IP) bool {
-	if atomic.LoadUint32(&s.matchAll) == 1 {
-		return true
-	}
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-
-	for _, cidr := range s.list {
-		if len(cidr.Mask) > 0 && cidr.Contains(ip) {
-			return true
-		}
-	}
-	return false
-}
-
-var LIST_SIZE = 36
-
-func TestChecklist4(t *testing.T) {
-	r := rand.New(rand.NewSource(TEST_SEED))
-	simplelist := NewSimpleList()
-	checklist := NewChecklist4()
-	for i := 0; i < LIST_SIZE; i++ {
-		buf := make([]byte, net.IPv4len)
-		r.Read(buf)
-		cidr := &net.IPNet{IP: buf, Mask: net.CIDRMask(r.Intn(25)+8, 32)}
-		simplelist.Add(cidr)
-		checklist.Add(cidr)
-	}
-
-	buf := make([]byte, net.IPv4len)
-	for i := 0; i < 1e6; i++ {
-		r.Read(buf)
-		if simplelist.Contains(buf) != checklist.Contains(buf) {
-			t.Errorf("Checklist4.Contains(%v) = %v, want %v", buf, checklist.Contains(buf), simplelist.Contains(buf))
-		}
-	}
-}
-
-func BenchmarkSimpleList(b *testing.B) {
-	r := rand.New(rand.NewSource(TEST_SEED))
-	simplelist := NewSimpleList()
-	for i := 0; i < LIST_SIZE; i++ {
-		buf := make([]byte, net.IPv4len)
-		r.Read(buf)
-		cidr := &net.IPNet{IP: buf, Mask: net.CIDRMask(r.Intn(25)+8, 32)}
-		simplelist.Add(cidr)
-	}
-
-	buf := make([]byte, net.IPv4len)
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		r.Read(buf)
-		simplelist.Contains(buf)
-	}
-}
-
-func BenchmarkChecklist4(b *testing.B) {
-	r := rand.New(rand.NewSource(TEST_SEED))
-	checklist := NewChecklist4()
-	for i := 0; i < LIST_SIZE; i++ {
-		buf := make([]byte, net.IPv4len)
-		r.Read(buf)
-		cidr := &net.IPNet{IP: buf, Mask: net.CIDRMask(r.Intn(25)+8, 32)}
-		checklist.Add(cidr)
-	}
-
-	buf := make([]byte, net.IPv4len)
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		r.Read(buf)
-		checklist.Contains(buf)
 	}
 }
