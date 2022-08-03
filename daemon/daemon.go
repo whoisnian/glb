@@ -1,8 +1,8 @@
 // Package daemon creates orphan process as daemon.
-//   1. Current process use Launch() to start launcher and wait.
-//   2. Launcher use launch() to start daemon and wait.
-//   3. Daemon use Done() to kill its launcher and continue.
-//   4. Launcher exits and current process continue.
+//  1. Current process use Launch() to start launcher and wait.
+//  2. Launcher use launch() to start daemon and wait.
+//  3. Daemon use Done() to kill its launcher and continue.
+//  4. Launcher exits and current process continue.
 package daemon
 
 import (
@@ -33,12 +33,13 @@ func Register(name string, handler func()) {
 // Run starts launcher or daemon based on environment variables. Usually used in package init function.
 //
 // Example:
-//   func init() {
-//       daemon.Register(daemonName, runDaemon)
-//       if daemon.Run() {
-//           os.Exit(0)
-//       }
-//   }
+//
+//	func init() {
+//	    daemon.Register(daemonName, runDaemon)
+//	    if daemon.Run() {
+//	        os.Exit(0)
+//	    }
+//	}
 func Run() bool {
 	if name, ok := os.LookupEnv(envDaemonName); ok {
 		if handler, ok := handlerMap[name]; ok {

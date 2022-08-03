@@ -38,9 +38,10 @@ func (lw *loggerResponseWriter) Flush() {
 }
 
 // Req wraps http.Handler and writes request log to stdout with tagR. Example:
-//   if err := http.ListenAndServe(":8000", logger.Req(http.DefaultServeMux)); err != nil {
-//       logger.Fatal(err)
-//   }
+//
+//	if err := http.ListenAndServe(":8000", logger.Req(http.DefaultServeMux)); err != nil {
+//	    logger.Fatal(err)
+//	}
 func Req(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		lw := &loggerResponseWriter{w, 200, time.Now()}
@@ -56,13 +57,16 @@ func Req(handler http.Handler) http.Handler {
 }
 
 // Recovery wraps http.Handler and writes panic log to stderr with tagE. Example:
-//   if err := http.ListenAndServe(":8000", logger.Recovery(http.DefaultServeMux)); err != nil {
-//       logger.Fatal(err)
-//   }
+//
+//	if err := http.ListenAndServe(":8000", logger.Recovery(http.DefaultServeMux)); err != nil {
+//	    logger.Fatal(err)
+//	}
+//
 // If want use Recovery with Req, it should be like:
-//   if err := http.ListenAndServe(":8000", logger.Req(logger.Recovery(http.DefaultServeMux))); err != nil {
-//       logger.Fatal(err)
-//   }
+//
+//	if err := http.ListenAndServe(":8000", logger.Req(logger.Recovery(http.DefaultServeMux))); err != nil {
+//	    logger.Fatal(err)
+//	}
 func Recovery(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {

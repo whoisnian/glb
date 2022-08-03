@@ -1,9 +1,9 @@
 // Package logger implements a simple logger for local debug.
-//   * [I]: tagI for info log
-//   * [W]: tagW for warn log
-//   * [E]: tagE for error log
-//   * [D]: tagD for debug log
-//   * [R]: tagR for request log
+//   - [I]: tagI for info log
+//   - [W]: tagW for warn log
+//   - [E]: tagE for error log
+//   - [D]: tagD for debug log
+//   - [R]: tagR for request log
 package logger
 
 import (
@@ -83,10 +83,11 @@ func Error(v ...interface{}) {
 // Debug writes debug log to stdout with tagD.
 //
 // If parameters need heavy calculation, should wrap them with a conditional block. Example:
-//   if logger.IsDebug() {
-//       diffs := calcDifference(A, B)
-//       logger.Debug("compare A to B:", diffs)
-//   }
+//
+//	if logger.IsDebug() {
+//	    diffs := calcDifference(A, B)
+//	    logger.Debug("compare A to B:", diffs)
+//	}
 func Debug(v ...interface{}) {
 	if !debug {
 		return

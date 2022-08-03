@@ -95,9 +95,10 @@ func parseRoute(node *routeNode, path string, method string, handler HandlerFunc
 }
 
 // about trailing slash:
-//   `/foo/bar`  will be matched by `/foo/bar`
-//   `/foo/bar/` will be matched by `/foo/bar/:param` or `/foo/bar/*`
-//   `/`         will be matched by `/` first and then `/:param` or `/*`
+//
+//	`/foo/bar`  will be matched by `/foo/bar`
+//	`/foo/bar/` will be matched by `/foo/bar/:param` or `/foo/bar/*`
+//	`/`         will be matched by `/` first and then `/:param` or `/*`
 func findRoute(node *routeNode, path string, method string, params *Params) (handler HandlerFunc) {
 	var length, left, right int = len(path), 0, 0
 	if length == 1 {
