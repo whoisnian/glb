@@ -18,13 +18,16 @@ func init() {
 }
 
 type SimpleIPNetList struct {
-	matchAll uint32
+	matchAll *atomic.Bool
 	ipList   []net.IPNet
 }
 
+func NewSimpleIPNetList() *SimpleIPNetList {
+	return &SimpleIPNetList{matchAll: &atomic.Bool{}}
+}
 func (s *SimpleIPNetList) Add(cidr *net.IPNet) error {
 	if ones, _ := cidr.Mask.Size(); ones == 0 {
-		atomic.StoreUint32(&s.matchAll, 1)
+		s.matchAll.Store(true)
 		return nil
 	}
 	s.ipList = append(s.ipList, net.IPNet{IP: cidr.IP.Mask(cidr.Mask), Mask: append([]byte(nil), cidr.Mask...)})
@@ -32,7 +35,7 @@ func (s *SimpleIPNetList) Add(cidr *net.IPNet) error {
 }
 func (s *SimpleIPNetList) Remove(cidr *net.IPNet) error {
 	if ones, _ := cidr.Mask.Size(); ones == 0 {
-		atomic.StoreUint32(&s.matchAll, 0)
+		s.matchAll.Store(false)
 		return nil
 	}
 	for i := range s.ipList {
@@ -43,7 +46,7 @@ func (s *SimpleIPNetList) Remove(cidr *net.IPNet) error {
 	return nil
 }
 func (s *SimpleIPNetList) Contains(ip net.IP) bool {
-	if atomic.LoadUint32(&s.matchAll) == 1 {
+	if s.matchAll.Load() {
 		return true
 	}
 	for _, cidr := range s.ipList {
@@ -56,7 +59,7 @@ func (s *SimpleIPNetList) Contains(ip net.IP) bool {
 
 func testIPv4Filter(t *testing.T, size int) {
 	r := rand.New(rand.NewSource(TEST_SEED))
-	simple := &SimpleIPNetList{}
+	simple := NewSimpleIPNetList()
 	filter := NewIPv4Filter()
 	delList := []*net.IPNet{}
 	for i := 0; i < size; i++ {
@@ -143,7 +146,7 @@ func benchmarkFilter(b *testing.B, f Filter, size int) {
 }
 
 func BenchmarkSimpleIPNetList32(b *testing.B) {
-	simple := &SimpleIPNetList{}
+	simple := NewSimpleIPNetList()
 	benchmarkFilter(b, simple, 32)
 }
 
@@ -163,7 +166,7 @@ func BenchmarkIPv4FilterModeMaps32(b *testing.B) {
 }
 
 func BenchmarkSimpleIPNetList128(b *testing.B) {
-	simple := &SimpleIPNetList{}
+	simple := NewSimpleIPNetList()
 	benchmarkFilter(b, simple, 128)
 }
 
@@ -183,7 +186,7 @@ func BenchmarkIPv4FilterModeMaps128(b *testing.B) {
 }
 
 func BenchmarkSimpleIPNetList256(b *testing.B) {
-	simple := &SimpleIPNetList{}
+	simple := NewSimpleIPNetList()
 	benchmarkFilter(b, simple, 256)
 }
 
@@ -203,7 +206,7 @@ func BenchmarkIPv4FilterModeMaps256(b *testing.B) {
 }
 
 func BenchmarkSimpleIPNetList512(b *testing.B) {
-	simple := &SimpleIPNetList{}
+	simple := NewSimpleIPNetList()
 	benchmarkFilter(b, simple, 512)
 }
 

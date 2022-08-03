@@ -1,10 +1,11 @@
 // Package tasklane creates multiple goroutines to wait and run tasks.
-//   TaskLane  := []TaskQueue
-//   TaskQueue := {
-//     Buffered Channel
-//     Blocking Channel
-//     Goroutine Worker
-//   }
+//
+//	TaskLane  := []TaskQueue
+//	TaskQueue := {
+//	  Buffered Channel
+//	  Blocking Channel
+//	  Goroutine Worker
+//	}
 package tasklane
 
 import (
@@ -39,7 +40,7 @@ type TaskLane struct {
 	universalQueue    chan Task
 
 	// Status
-	blockingTaskCnt uint32
+	blockingTaskCnt *atomic.Uint32
 	lastPanic       any
 }
 
@@ -53,7 +54,7 @@ func (tl *TaskLane) startQueue(index int) {
 			return
 		case task = <-tl.bufferedQueueList[index]:
 		}
-		atomic.AddUint32(&tl.blockingTaskCnt, 1)
+		tl.blockingTaskCnt.Add(1)
 		select {
 		case <-tl.ctx.Done():
 			return
@@ -69,7 +70,7 @@ func (tl *TaskLane) startQueue(index int) {
 				}
 			}
 		}
-		atomic.AddUint32(&tl.blockingTaskCnt, ^uint32(0)) // decrement blockingTaskCnt
+		tl.blockingTaskCnt.Add(^uint32(0)) // decrement blockingTaskCnt
 	}
 }
 
@@ -126,7 +127,7 @@ func New(ctx context.Context, laneSize, queueSize int) *TaskLane {
 		blockingQueueList: blockingQueueList,
 		universalQueue:    make(chan Task),
 
-		blockingTaskCnt: 0,
+		blockingTaskCnt: &atomic.Uint32{},
 	}
 
 	// start TaskQueue
@@ -164,7 +165,7 @@ func (tl *TaskLane) Status() *LaneStatus {
 	for i := 0; i < tl.laneSize; i++ {
 		pending += len(tl.bufferedQueueList[i])
 	}
-	pending += int(atomic.LoadUint32(&tl.blockingTaskCnt))
+	pending += int(tl.blockingTaskCnt.Load())
 	return &LaneStatus{
 		LaneSize:    tl.laneSize,
 		QueueSize:   tl.queueSize,

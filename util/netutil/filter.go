@@ -29,7 +29,7 @@ const (
 
 type IPv4Filter struct {
 	mutex    sync.RWMutex
-	matchAll uint32
+	matchAll *atomic.Bool
 
 	mode   uint32
 	index  int
@@ -38,7 +38,7 @@ type IPv4Filter struct {
 }
 
 func NewIPv4Filter() *IPv4Filter {
-	return &IPv4Filter{mode: modeList, index: 0}
+	return &IPv4Filter{matchAll: &atomic.Bool{}, mode: modeList, index: 0}
 }
 
 func (f *IPv4Filter) Add(cidr *net.IPNet) error {
@@ -46,7 +46,7 @@ func (f *IPv4Filter) Add(cidr *net.IPNet) error {
 	if bits != 32 || ones > 32 || len(cidr.IP) != net.IPv4len {
 		return ErrInvalidIPv4CIDR
 	} else if ones == 0 {
-		atomic.StoreUint32(&f.matchAll, 1)
+		f.matchAll.Store(true)
 		return nil
 	}
 
@@ -81,7 +81,7 @@ func (f *IPv4Filter) Remove(cidr *net.IPNet) error {
 	if bits != 32 || ones > 32 || len(cidr.IP) != net.IPv4len {
 		return ErrInvalidIPv4CIDR
 	} else if ones == 0 {
-		atomic.StoreUint32(&f.matchAll, 0)
+		f.matchAll.Store(false)
 		return nil
 	}
 
@@ -102,7 +102,7 @@ func (f *IPv4Filter) Remove(cidr *net.IPNet) error {
 }
 
 func (f *IPv4Filter) Contains(ip net.IP) bool {
-	if atomic.LoadUint32(&f.matchAll) == 1 {
+	if f.matchAll.Load() {
 		return true
 	} else if len(ip) != net.IPv4len {
 		return false
