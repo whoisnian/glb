@@ -13,7 +13,9 @@ import (
 )
 
 const (
-	Rip     = `[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}`
+	Rip4    = `[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}`
+	Rip6    = `([0-9a-fA-F]{0,4}:){1,7}[0-9a-fA-F]{0,4}`
+	Rip     = `((` + Rip4 + `)|(` + Rip6 + `))`
 	Rstatus = `\[[0-9]{3}\]`
 	Rmethod = `(GET|HEAD|POST|PUT|DELETE|CONNECT|OPTIONS|TRACE|PATCH)`
 	Rpath   = `/\S*`
@@ -38,7 +40,7 @@ func requestAndCheck(t *testing.T, url string, code int, body []byte) {
 	}
 }
 
-func TestReq(t *testing.T) {
+func TestReq4(t *testing.T) {
 	var stdout bytes.Buffer
 	logger.SetOutput(&stdout, nil)
 	t.Cleanup(resetLogger)
@@ -51,6 +53,49 @@ func TestReq(t *testing.T) {
 		w.Write(httpResp)
 	})
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("net.Listen: %v", err)
+	}
+	server := &http.Server{Addr: ln.Addr().String(), Handler: logger.Req(mux)}
+	go func() {
+		if err := server.Serve(ln); err != nil && err != http.ErrServerClosed {
+			panic(err)
+		}
+	}()
+	defer server.Shutdown(context.Background())
+
+	stdout.Reset()
+	requestAndCheck(t, "http://"+server.Addr+"/200", http.StatusOK, httpResp)
+	if !reForRequest.Match(stdout.Bytes()) {
+		t.Fatalf("request log should match %q is %q", reForRequest, stdout.Bytes())
+	}
+
+	stdout.Reset()
+	requestAndCheck(t, "http://"+server.Addr+"/400", http.StatusBadRequest, httpResp)
+	if !reForRequest.Match(stdout.Bytes()) {
+		t.Fatalf("request log should match %q is %q", reForRequest, stdout.Bytes())
+	}
+
+	stdout.Reset()
+	requestAndCheck(t, "http://"+server.Addr+"/500", http.StatusInternalServerError, httpResp)
+	if !reForRequest.Match(stdout.Bytes()) {
+		t.Fatalf("request log should match %q is %q", reForRequest, stdout.Bytes())
+	}
+}
+
+func TestReq6(t *testing.T) {
+	var stdout bytes.Buffer
+	logger.SetOutput(&stdout, nil)
+	t.Cleanup(resetLogger)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/200", func(w http.ResponseWriter, _ *http.Request) { w.Write(httpResp) })
+	mux.HandleFunc("/400", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusBadRequest); w.Write(httpResp) })
+	mux.HandleFunc("/500", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write(httpResp)
+	})
+	ln, err := net.Listen("tcp", "[::1]:0")
 	if err != nil {
 		t.Fatalf("net.Listen: %v", err)
 	}

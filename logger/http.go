@@ -46,8 +46,13 @@ func Req(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		lw := &loggerResponseWriter{w, 200, time.Now()}
 		handler.ServeHTTP(lw, r)
+
+		remoteAddr := r.RemoteAddr[0:strings.LastIndexByte(r.RemoteAddr, ':')]
+		if remoteAddr[0] == '[' {
+			remoteAddr = remoteAddr[1 : len(remoteAddr)-1]
+		}
 		lout.Output(2, tagR+" "+fmt.Sprint(
-			r.RemoteAddr[0:strings.IndexByte(r.RemoteAddr, ':')], " [",
+			remoteAddr, " [",
 			lw.status, "] ",
 			r.Method, " ",
 			r.RequestURI, " ",
