@@ -16,36 +16,27 @@ import (
 	"github.com/whoisnian/glb/util/fsutil"
 )
 
-var (
-	flagSet   = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
-	nameMap   = make(map[string]string)     // mapping from flag name to original struct field name
-	actualMap = make(map[string]*flag.Flag) // flags in flagSet that have been set by cli, env, or custom configuration
+type FlagSet struct {
+	set       *flag.FlagSet
+	nameMap   map[string]string     // mapping from flag name to original struct field name
+	actualMap map[string]*flag.Flag // flags in the internal flagSet that have been set by cli, env, or custom configuration
 
 	configSource string
-	configB64Env = "CFG_CONFIG_B64"
-	envPrefix    = "CFG_"
-)
+	configB64Env string
+	envPrefix    string
 
-// LookupActual returns the Flag structure that have been set, returning nil if not set.
-func LookupActual(name string) *flag.Flag {
-	return actualMap[name]
+	initialized bool
+	structValue reflect.Value
 }
 
-// LookupFormal returns the Flag structure of the named flag, returning nil if none exists.
-func LookupFormal(name string) *flag.Flag {
-	return flagSet.Lookup(name)
-}
-
-// Init parses struct exported fields as configuration items and fills final values into the struct.
-// This function accepts a pointer to struct as input argument.
-func Init(pStruct any) error {
-	pVal := reflect.ValueOf(pStruct)
-	if pVal.Kind() != reflect.Pointer {
-		return errors.New("config: Init() want pointer as input argument, but got " + pVal.Kind().String())
-	}
-	val := pVal.Elem()
-	if val.Kind() != reflect.Struct {
-		return errors.New("config: Init() want pointer to struct, but got pointer to " + val.Kind().String())
+// NewFlagSet returns a new, empty flag set with the specified name and error handling property.
+func NewFlagSet(name string, errorHandling flag.ErrorHandling) *FlagSet {
+	f := &FlagSet{
+		set:          flag.NewFlagSet(name, errorHandling),
+		nameMap:      make(map[string]string),
+		actualMap:    make(map[string]*flag.Flag),
+		configB64Env: "CFG_CONFIG_B64",
+		envPrefix:    "CFG_",
 	}
 
 	// cli usage:
@@ -53,9 +44,55 @@ func Init(pStruct any) error {
 	//   -config ./config.json
 	//   --config=~/config.json
 	//   --config /etc/demo/config.json
-	flagSet.StringVar(&configSource, "config", "", "Specify file path of custom configuration json")
+	f.set.StringVar(&f.configSource, "config", "", "Specify file path of custom configuration json")
+	return f
+}
 
-	vType := val.Type()
+// LookupActual returns the Flag structure that have been set, returning nil if not set.
+func (f *FlagSet) LookupActual(name string) *flag.Flag {
+	return f.actualMap[name]
+}
+
+// LookupFormal returns the Flag structure of the named flag, returning nil if none exists.
+func (f *FlagSet) LookupFormal(name string) *flag.Flag {
+	return f.set.Lookup(name)
+}
+
+// Initialized reports whether f.Init() has been called.
+func (f *FlagSet) Initialized() bool {
+	return f.initialized
+}
+
+// FromCommandLine creates new flag set and parses os.Args for input struct argument.
+func FromCommandLine(pStruct any) (err error) {
+	f := NewFlagSet(os.Args[0], flag.ExitOnError)
+	if err = f.Init(pStruct); err != nil {
+		return err
+	}
+	if err = f.Parse(os.Args[1:]); err != nil {
+		return err
+	}
+	return nil
+}
+
+// Init parses struct exported fields as configuration items and adds items to the internal flagSet.
+// Only accept a pointer to struct as input argument.
+func (f *FlagSet) Init(pStruct any) error {
+	if f.initialized {
+		return errors.New("config: Init() should be called only once")
+	}
+	f.initialized = true
+
+	pVal := reflect.ValueOf(pStruct)
+	if pVal.Kind() != reflect.Pointer {
+		return errors.New("config: Init() want pointer as input argument, but got " + pVal.Kind().String())
+	}
+	f.structValue = pVal.Elem()
+	if f.structValue.Kind() != reflect.Struct {
+		return errors.New("config: Init() want pointer to struct, but got pointer to " + f.structValue.Kind().String())
+	}
+
+	vType := f.structValue.Type()
 	for i := 0; i < vType.NumField(); i++ {
 		sf := vType.Field(i)
 		if !sf.IsExported() {
@@ -63,38 +100,46 @@ func Init(pStruct any) error {
 		}
 
 		tName, tValue, tUsage := parseStructFieldTag(sf)
-		nameMap[tName] = sf.Name
-		if err := addVarToFlagSet(val.Field(i).Addr().Interface(), tName, tValue, tUsage); err != nil {
+		f.nameMap[tName] = sf.Name
+		if err := f.addFieldToFlagSet(i, tName, tValue, tUsage); err != nil {
 			return err
 		}
 	}
-	flagSet.Parse(os.Args[1:])
+	return nil
+}
+
+// Parse parses flag definitions from the argument list, which should not include the command name.
+// Must be called after f.Init().
+func (f *FlagSet) Parse(arguments []string) error {
+	if !f.initialized {
+		return errors.New("config: Parse() must be called after f.Init()")
+	}
+	f.set.Parse(arguments)
 
 	configJsonMap := make(map[string]json.RawMessage)
-	err := unmarshalConfigJson(&configJsonMap)
+	err := f.unmarshalConfigJson(&configJsonMap)
 	if err != nil {
 		return err
 	}
 
-	flagSet.Visit(func(f *flag.Flag) { actualMap[f.Name] = f })
-	flagSet.VisitAll(func(f *flag.Flag) {
-		if actualMap[f.Name] != nil {
+	f.set.Visit(func(flg *flag.Flag) { f.actualMap[flg.Name] = flg })
+	f.set.VisitAll(func(flg *flag.Flag) {
+		if f.actualMap[flg.Name] != nil {
 			return // flag has been set by cli
 		}
 
-		if res, ok := os.LookupEnv(envPrefix + strings.ToUpper(nameMap[f.Name])); ok {
-			f.Value.Set(res)
-			actualMap[f.Name] = f
+		if res, ok := os.LookupEnv(f.envPrefix + strings.ToUpper(f.nameMap[flg.Name])); ok {
+			flg.Value.Set(res)
+			f.actualMap[flg.Name] = flg
 			return // flag has been set by env
 		}
 
-		if res, ok := configJsonMap[nameMap[f.Name]]; ok {
-			json.Unmarshal(res, val.FieldByName(nameMap[f.Name]).Addr().Interface())
-			actualMap[f.Name] = f
+		if res, ok := configJsonMap[f.nameMap[flg.Name]]; ok {
+			json.Unmarshal(res, f.structValue.FieldByName(f.nameMap[flg.Name]).Addr().Interface())
+			f.actualMap[flg.Name] = flg
 			return // flag has been set by custom configuration
 		}
 	})
-
 	return nil
 }
 
@@ -134,68 +179,68 @@ func parseStructFieldTag(sf reflect.StructField) (name, value, usage string) {
 //   - *float64
 //   - *time.Duration
 //   - *[]byte
-func addVarToFlagSet(variable any, name string, defValue string, usage string) error {
-	switch pVar := variable.(type) {
+func (f *FlagSet) addFieldToFlagSet(i int, name string, defValue string, usage string) error {
+	switch pVar := f.structValue.Field(i).Addr().Interface().(type) {
 	case *bool:
 		value, err := parseDefaultBool(defValue)
 		if err != nil {
 			return err
 		}
-		flagSet.BoolVar(pVar, name, value, usage)
+		f.set.BoolVar(pVar, name, value, usage)
 	case *int:
 		value, err := parseDefaultInt(defValue)
 		if err != nil {
 			return err
 		}
-		flagSet.IntVar(pVar, name, value, usage)
+		f.set.IntVar(pVar, name, value, usage)
 	case *int64:
 		value, err := parseDefaultInt64(defValue)
 		if err != nil {
 			return err
 		}
-		flagSet.Int64Var(pVar, name, value, usage)
+		f.set.Int64Var(pVar, name, value, usage)
 	case *uint:
 		value, err := parseDefaultUint(defValue)
 		if err != nil {
 			return err
 		}
-		flagSet.UintVar(pVar, name, value, usage)
+		f.set.UintVar(pVar, name, value, usage)
 	case *uint64:
 		value, err := parseDefaultUint64(defValue)
 		if err != nil {
 			return err
 		}
-		flagSet.Uint64Var(pVar, name, value, usage)
+		f.set.Uint64Var(pVar, name, value, usage)
 	case *string:
-		flagSet.StringVar(pVar, name, defValue, usage)
+		f.set.StringVar(pVar, name, defValue, usage)
 	case *float64:
 		value, err := parseDefaultFloat64(defValue)
 		if err != nil {
 			return err
 		}
-		flagSet.Float64Var(pVar, name, value, usage)
+		f.set.Float64Var(pVar, name, value, usage)
 	case *time.Duration:
 		value, err := parseDefaultDuration(defValue)
 		if err != nil {
 			return err
 		}
-		flagSet.DurationVar(pVar, name, value, usage)
+		f.set.DurationVar(pVar, name, value, usage)
 	case *[]byte:
 		value, err := parseDefaultBytesValue(defValue)
 		if err != nil {
 			return err
 		}
-		flagSet.TextVar((*bytesValue)(pVar), name, value, usage)
+		f.set.TextVar((*bytesValue)(pVar), name, value, usage)
 	default:
 		return errors.New("config: unknown var type " + reflect.TypeOf(pVar).String())
 	}
 	return nil
 }
 
-func unmarshalConfigJson(configJsonMap *map[string]json.RawMessage) (err error) {
+func (f *FlagSet) unmarshalConfigJson(configJsonMap *map[string]json.RawMessage) (err error) {
 	var data []byte
-	if configSource != "" {
-		fPath, err := fsutil.ResolveHomeDir(configSource)
+	if f.configSource != "" {
+		fPath, err := fsutil.ResolveHomeDir(f.configSource)
 		if err != nil {
 			return err
 		}
@@ -203,7 +248,7 @@ func unmarshalConfigJson(configJsonMap *map[string]json.RawMessage) (err error) 
 		if err != nil {
 			return err
 		}
-	} else if res, ok := os.LookupEnv(configB64Env); ok {
+	} else if res, ok := os.LookupEnv(f.configB64Env); ok {
 		data, err = base64.StdEncoding.DecodeString(res)
 		if err != nil {
 			return err
