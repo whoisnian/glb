@@ -148,19 +148,20 @@ func (f *FlagSet) Parse(arguments []string) error {
 //	`flag:"name,value,usage"`
 //	`flag:"|name|value|usage"`
 func parseStructFieldTag(sf reflect.StructField) (name, value, usage string) {
-	src := sf.Tag.Get("flag")
+	name = sf.Tag.Get("flag")
 
 	var sep byte = ','
-	if src != "" && src[0] == '|' {
-		src = src[1:]
+	if name != "" && name[0] == '|' {
+		name = name[1:]
 		sep = '|'
 	}
 
-	if posN := strings.IndexByte(src, sep); posN >= 0 {
-		name = src[:posN]
-		if posV := strings.IndexByte(src[posN+1:], sep); posV >= 0 {
-			value = src[posN+1 : posN+1+posV]
-			usage = src[posN+1+posV+1:]
+	if posN := strings.IndexByte(name, sep); posN >= 0 {
+		value = name[posN+1:]
+		name = name[:posN]
+		if posV := strings.IndexByte(value, sep); posV >= 0 {
+			usage = value[posV+1:]
+			value = value[:posV]
 		}
 	}
 	if name == "" {
