@@ -64,6 +64,21 @@ func (f *FlagSet) Initialized() bool {
 }
 
 // FromCommandLine creates new flag set and parses os.Args for input struct argument.
+//
+// Example:
+//
+//	type Config struct {
+//	    ListenAddr string `flag:"l,0.0.0.0:80,Server listen addr"`
+//	    Version    bool   `flag:"v,false,Show version and quit"`
+//	}
+//
+//	func main() {
+//	    cfg := &Config{}
+//	    if err := config.FromCommandLine(cfg); err != nil {
+//	        panic(err)
+//	    }
+//	    fmt.Printf("%+v", cfg)
+//	}
 func FromCommandLine(pStruct any) (err error) {
 	f := NewFlagSet(os.Args[0], flag.ExitOnError)
 	if err = f.Init(pStruct); err != nil {
