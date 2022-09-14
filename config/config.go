@@ -1,6 +1,22 @@
 // Package config generates flag.FlagSet from structField tags and reads Flag.Value from cli, env, or configuration file.
 //
 // priority: cli > env > file > default
+//
+// Two structField tag formats:
+//
+//	`flag:"name,value,usage"`
+//	`flag:"|name|value|usage"`
+//
+// Nested structure is not supported. Type of structField can be:
+//   - *bool
+//   - *int
+//   - *int64
+//   - *uint
+//   - *uint64
+//   - *string
+//   - *float64
+//   - *time.Duration
+//   - *[]byte
 package config
 
 import (
