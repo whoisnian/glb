@@ -1,6 +1,7 @@
 package config_test
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"flag"
@@ -301,4 +302,34 @@ func TestConfigJson_Env(t *testing.T) {
 		t.Fatalf("f.Parse() result:\n  get  %+v\n  want %+v", actual, want)
 	}
 	os.Unsetenv("CFG_CONFIG_B64")
+}
+
+func TestGenerateExample(t *testing.T) {
+	actual := TagValue{}
+	want := TagValue{
+		Bool:     true,
+		Int:      0,
+		Int64:    1,
+		Uint:     2,
+		Uint64:   3,
+		String:   ":80",
+		Float64:  0.6,
+		Duration: time.Second * 10,
+		Bytes:    []byte("whoisnian"),
+	}
+	wantData, err := json.MarshalIndent(want, "", "  ")
+	if err != nil {
+		t.Fatalf("json.MarshalIndent() error: %v", err)
+	}
+
+	data, err := config.GenerateExample(&actual)
+	if err != nil {
+		t.Fatalf("config.GenerateExample() error: %v", err)
+	}
+	if !bytes.Equal(data, wantData) {
+		t.Fatalf("config.GenerateExample() result:\nget: %s\nwant: %s", data, wantData)
+	}
+	if !reflect.DeepEqual(actual, want) {
+		t.Fatalf("config.GenerateExample() result:\n  get  %+v\n  want %+v", actual, want)
+	}
 }
