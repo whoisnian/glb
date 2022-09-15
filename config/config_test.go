@@ -304,6 +304,49 @@ func TestConfigJson_Env(t *testing.T) {
 	os.Unsetenv("CFG_CONFIG_B64")
 }
 
+func TestValuePriority(t *testing.T) {
+	actual := TagValue{}
+	want := TagValue{
+		Bool:     true,
+		Int:      12, // cli > env > file > default
+		Int64:    21, // env > file > default
+		Uint:     30, // file > default
+		Uint64:   3,  // default
+		String:   ":80",
+		Float64:  0.6,
+		Duration: time.Second * 10,
+		Bytes:    []byte("whoisnian"),
+	}
+
+	fi, err := os.CreateTemp("", "config-json-file-*.json")
+	if err != nil {
+		t.Fatalf("os.CreateTemp() error: %v", err)
+	}
+	if _, err = fi.WriteString(`{"Int":10,"Int64":20,"Uint":30}`); err != nil {
+		t.Fatalf("File.WriteString() error: %v", err)
+	}
+	fi.Close()
+	defer os.Remove(fi.Name())
+
+	f := config.NewFlagSet("test", flag.ContinueOnError)
+	if err := f.Init(&actual); err != nil {
+		t.Fatalf("f.Init() error: %v", err)
+	}
+
+	os.Setenv("CFG_INT", "11")
+	os.Setenv("CFG_INT64", "21")
+
+	if err := f.Parse([]string{"-config", fi.Name(), "-int=12"}); err != nil {
+		t.Fatalf("f.Parse() error: %v", err)
+	}
+	if !reflect.DeepEqual(actual, want) {
+		t.Fatalf("f.Parse() result:\n  get  %+v\n  want %+v", actual, want)
+	}
+
+	os.Unsetenv("CFG_INT")
+	os.Unsetenv("CFG_INT64")
+}
+
 func TestGenerateExample(t *testing.T) {
 	actual := TagValue{}
 	want := TagValue{
