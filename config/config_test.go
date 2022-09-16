@@ -1,7 +1,6 @@
 package config_test
 
 import (
-	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"flag"
@@ -360,17 +359,9 @@ func TestGenerateExample(t *testing.T) {
 		Duration: time.Second * 10,
 		Bytes:    []byte("whoisnian"),
 	}
-	wantData, err := json.MarshalIndent(want, "", "  ")
-	if err != nil {
-		t.Fatalf("json.MarshalIndent() error: %v", err)
-	}
-
-	data, err := config.GenerateExample(&actual)
+	err := config.GenerateDefault(&actual)
 	if err != nil {
 		t.Fatalf("config.GenerateExample() error: %v", err)
-	}
-	if !bytes.Equal(data, wantData) {
-		t.Fatalf("config.GenerateExample() result:\nget: %s\nwant: %s", data, wantData)
 	}
 	if !reflect.DeepEqual(actual, want) {
 		t.Fatalf("config.GenerateExample() result:\n  get  %+v\n  want %+v", actual, want)

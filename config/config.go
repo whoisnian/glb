@@ -106,15 +106,18 @@ func FromCommandLine(pStruct any) (err error) {
 	return nil
 }
 
-// GenerateExample generates example configuration json using default values.
-// The value of the pStruct pointing to is also modified.
-func GenerateExample(pStruct any) (data []byte, err error) {
+// GenerateDefault fills the value of the pStruct pointing to using default values.
+func GenerateDefault(pStruct any) (err error) {
 	f := NewFlagSet("", flag.ContinueOnError)
 	if err = f.Init(pStruct); err != nil {
-		return nil, err
+		return err
 	}
-	f.set.VisitAll(func(flg *flag.Flag) { flg.Value.Set(flg.DefValue) })
-	return json.MarshalIndent(pStruct, "", "  ")
+	f.set.VisitAll(func(flg *flag.Flag) {
+		if err == nil {
+			err = flg.Value.Set(flg.DefValue)
+		}
+	})
+	return err
 }
 
 // Init parses struct exported fields as configuration items and adds items to the internal flagSet.
