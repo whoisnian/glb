@@ -4,6 +4,8 @@
 //   - [E]: tagE for error log
 //   - [D]: tagD for debug log
 //   - [R]: tagR for request log
+//
+// By default, colorful flag will be enable if standard output is connected to a terminal.
 package logger
 
 import (
@@ -13,6 +15,7 @@ import (
 	"os"
 
 	"github.com/whoisnian/glb/ansi"
+	"golang.org/x/term"
 )
 
 const labelI, labelW, labelE, labelD, labelR string = "[I]", "[W]", "[E]", "[D]", "[R]"
@@ -24,6 +27,9 @@ var lout, lerr *log.Logger
 func init() {
 	lout = log.New(os.Stdout, "", log.LstdFlags)
 	lerr = log.New(os.Stderr, "", log.LstdFlags)
+	if term.IsTerminal(int(os.Stdout.Fd())) {
+		SetColorful(true)
+	}
 }
 
 // SetOutput redirects stdout/stderr of the logger.
