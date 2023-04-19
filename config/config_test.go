@@ -234,6 +234,34 @@ func TestLookupActual(t *testing.T) {
 	}
 }
 
+func TestArgs(t *testing.T) {
+	var tests = [][][]string{{
+		{"arg_1"},
+		{"arg_1"},
+	}, {
+		{"arg_1", "arg_2"},
+		{"arg_1", "arg_2"},
+	}, {
+		{"-int=10", "arg_1", "arg_2"},
+		{"arg_1", "arg_2"},
+	}, {
+		{"arg_1", "-int=10", "arg_3"},
+		{"arg_1", "-int=10", "arg_3"},
+	}}
+	for _, tt := range tests {
+		f := config.NewFlagSet("test", flag.ContinueOnError)
+		if err := f.Init(&TagValue{}); err != nil {
+			t.Fatalf("f.Init() error: %v", err)
+		}
+		if err := f.Parse(tt[0]); err != nil {
+			t.Fatalf("f.Parse() error: %v", err)
+		}
+		if !reflect.DeepEqual(f.Args(), tt[1]) {
+			t.Fatalf("f.Args() result:\n  get  %+v\n  want %+v", f.Args(), tt[1])
+		}
+	}
+}
+
 func TestConfigJson_File(t *testing.T) {
 	actual := TagValue{}
 	want := TagValue{

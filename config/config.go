@@ -74,6 +74,11 @@ func (f *FlagSet) LookupFormal(name string) *flag.Flag {
 	return f.set.Lookup(name)
 }
 
+// Args returns the non-flag command-line arguments, similarly to `flag.Args()`.
+func (f *FlagSet) Args() []string {
+	return f.set.Args()
+}
+
 // Initialized reports whether f.Init() has been called.
 func (f *FlagSet) Initialized() bool {
 	return f.initialized
@@ -104,6 +109,18 @@ func FromCommandLine(pStruct any) (err error) {
 		return err
 	}
 	return nil
+}
+
+// FromCommandLineWithArgs parses os.Args for input struct argument and returns the non-flag arguments.
+func FromCommandLineWithArgs(pStruct any) (args []string, err error) {
+	f := NewFlagSet(os.Args[0], flag.ExitOnError)
+	if err = f.Init(pStruct); err != nil {
+		return nil, err
+	}
+	if err = f.Parse(os.Args[1:]); err != nil {
+		return nil, err
+	}
+	return f.Args(), nil
 }
 
 // GenerateDefault fills the value of the pStruct pointing to using default values.
