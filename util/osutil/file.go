@@ -5,6 +5,11 @@ import (
 	"os"
 )
 
+const (
+	DefaultFileMode os.FileMode = 0644
+	DefaultDirMode  os.FileMode = 0755
+)
+
 // CopyFile reads data from source file and writes to target file.
 // If the target file already exists, it is overwritten.
 func CopyFile(srcPath, destPath string) (int64, error) {

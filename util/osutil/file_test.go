@@ -20,7 +20,7 @@ func TestCopyFile(t *testing.T) {
 	srcPath := filepath.Join(tempDir, "src")
 	destPath := filepath.Join(tempDir, "dest")
 
-	err = os.WriteFile(srcPath, want, 0644)
+	err = os.WriteFile(srcPath, want, osutil.DefaultFileMode)
 	if err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
