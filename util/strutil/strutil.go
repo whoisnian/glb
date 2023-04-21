@@ -1,7 +1,10 @@
 // Package strutil implements some string utility functions.
 package strutil
 
-import "strings"
+import (
+	"strings"
+	"unsafe"
+)
 
 // SliceContain determines whether a string slice includes a certain value.
 func SliceContain(slice []string, value string) bool {
@@ -34,4 +37,18 @@ func IsDigitString(s string) bool {
 		}
 	}
 	return s != ""
+}
+
+// UnsafeStringToBytes converts string to byte slice without allocation.
+func UnsafeStringToBytes(s string) []byte {
+	if len(s) == 0 {
+		return []byte{}
+	}
+	return unsafe.Slice(unsafe.StringData(s), len(s))
+}
+
+// UnsafeBytesToString converts byte slice to string without allocation.
+// The bytes passed to function must not be modified afterwards.
+func UnsafeBytesToString(b []byte) string {
+	return unsafe.String(unsafe.SliceData(b), len(b))
 }

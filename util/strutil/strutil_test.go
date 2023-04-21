@@ -1,6 +1,7 @@
 package strutil_test
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/whoisnian/glb/util/strutil"
@@ -78,6 +79,35 @@ func TestIsDigitString(t *testing.T) {
 	for _, test := range tests {
 		if got := strutil.IsDigitString(test.input); got != test.want {
 			t.Errorf("IsDigitString(%q) = %v, want %v", test.input, got, test.want)
+		}
+	}
+}
+
+func TestUnsafeStringToBytes(t *testing.T) {
+	var inputs = []string{
+		"",
+		" ",
+		"hello, world",
+		"\a\b\\\\t\n\r\"'",
+		"\x00\x01\x02\x03\x04",
+	}
+	for _, input := range inputs {
+		if got := strutil.UnsafeStringToBytes(input); !bytes.Equal(got, []byte(input)) {
+			t.Errorf("UnsafeStringToBytes(%q) = %v, want %v", input, got, []byte(input))
+		}
+	}
+}
+
+func TestUnsafeBytesToString(t *testing.T) {
+	var inputs = [][]byte{
+		nil,
+		{},
+		{'h', 'e', 'l', 'l', 'o'},
+		{0, 1, 2, 3, 4},
+	}
+	for _, input := range inputs {
+		if got := strutil.UnsafeBytesToString(input); got != string(input) {
+			t.Errorf("UnsafeBytesToString(%q) = %q, want %q", input, got, string(input))
 		}
 	}
 }
