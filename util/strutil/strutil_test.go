@@ -87,6 +87,7 @@ func TestUnsafeStringToBytes(t *testing.T) {
 	var inputs = []string{
 		"",
 		" ",
+		"	",
 		"hello, world",
 		"\a\b\\\\t\n\r\"'",
 		"\x00\x01\x02\x03\x04",
@@ -102,6 +103,7 @@ func TestUnsafeBytesToString(t *testing.T) {
 	var inputs = [][]byte{
 		nil,
 		{},
+		{'	'},
 		{'h', 'e', 'l', 'l', 'o'},
 		{0, 1, 2, 3, 4},
 	}
