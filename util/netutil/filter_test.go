@@ -2,20 +2,12 @@ package netutil
 
 import (
 	"bytes"
-	"fmt"
 	"math/rand"
 	"net"
 	"sync/atomic"
 	"testing"
 	"time"
 )
-
-var TEST_SEED int64
-
-func init() {
-	TEST_SEED = time.Now().Unix()
-	fmt.Printf("Running tests with rand seed %v\n", TEST_SEED)
-}
 
 type SimpleIPNetList struct {
 	matchAll *atomic.Bool
@@ -58,7 +50,10 @@ func (s *SimpleIPNetList) Contains(ip net.IP) bool {
 }
 
 func testIPv4Filter(t *testing.T, size int) {
-	r := rand.New(rand.NewSource(TEST_SEED))
+	var SEED = time.Now().Unix()
+	t.Logf("Running tests with rand seed %v", SEED)
+
+	r := rand.New(rand.NewSource(SEED))
 	simple := NewSimpleIPNetList()
 	filter := NewIPv4Filter()
 	delList := []*net.IPNet{}
@@ -128,7 +123,10 @@ type Filter interface {
 }
 
 func benchmarkFilter(b *testing.B, f Filter, size int) {
-	r := rand.New(rand.NewSource(TEST_SEED))
+	var SEED = time.Now().Unix()
+	b.Logf("Running tests with rand seed %v", SEED)
+
+	r := rand.New(rand.NewSource(SEED))
 	for i := 0; i < size; i++ {
 		buf := make([]byte, net.IPv4len)
 		r.Read(buf)
