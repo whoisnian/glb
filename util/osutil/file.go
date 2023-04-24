@@ -27,3 +27,17 @@ func CopyFile(srcPath, destPath string) (int64, error) {
 
 	return io.Copy(dest, src)
 }
+
+// MoveFile moves the specified file from srcPath to destPath.
+// If os.Rename() fails, try to osutil.CopyFile() and then os.Remove().
+func MoveFile(srcPath, destPath string) (err error) {
+	if err = os.Rename(srcPath, destPath); err == nil {
+		return nil
+	}
+
+	_, err = CopyFile(srcPath, destPath)
+	if err != nil {
+		return err
+	}
+	return os.Remove(srcPath)
+}
