@@ -17,7 +17,7 @@ func NewProgressWriter(w io.Writer) *ProgressWriter {
 	return &ProgressWriter{
 		wr:     w,
 		size:   0,
-		status: nil,
+		status: make(chan int),
 	}
 }
 
@@ -39,9 +39,6 @@ func (pw *ProgressWriter) Size() int {
 // Status returns the status channel.
 // Total written size will be sent to the status channel without blocking after every write operation.
 func (pw *ProgressWriter) Status() chan int {
-	if pw.status == nil {
-		pw.status = make(chan int)
-	}
 	return pw.status
 }
 
