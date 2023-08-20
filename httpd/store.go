@@ -21,11 +21,12 @@ func (ps *Params) Get(key string) (value string, ok bool) {
 	return "", false
 }
 
-// Store consists of responseWriter, request and routeParams.
+// Store consists of responseWriter, request, routeParams and routeInfo.
 type Store struct {
 	W http.ResponseWriter
 	R *http.Request
 	P *Params
+	I *RouteInfo
 }
 
 type HandlerFunc func(*Store)
