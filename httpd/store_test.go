@@ -1,9 +1,11 @@
-package httpd
+package httpd_test
 
 import (
 	"bytes"
 	"net/http"
 	"testing"
+
+	"github.com/whoisnian/glb/httpd"
 )
 
 type fakeResponseWriter struct {
@@ -23,13 +25,13 @@ func (rw *fakeResponseWriter) Write(b []byte) (int, error) {
 }
 
 func TestCreateHandler(t *testing.T) {
-	store := &Store{W: &fakeResponseWriter{}, R: &http.Request{}}
+	store := &httpd.Store{W: &fakeResponseWriter{}, R: &http.Request{}}
 	httpHandler := func(w http.ResponseWriter, r *http.Request) {
 		if w != store.W || r != store.R {
 			t.Fatal("CreateHandler should pass original Request and ResponseWriter to httpHandler")
 		}
 	}
-	CreateHandler(httpHandler)(store)
+	httpd.CreateHandler(httpHandler)(store)
 }
 
 func TestCookieValue(t *testing.T) {
@@ -48,7 +50,7 @@ func TestCookieValue(t *testing.T) {
 			cookieStr = cookieStr + tt.k + "=" + tt.v + ";"
 		}
 	}
-	store := &Store{W: &fakeResponseWriter{}, R: &http.Request{
+	store := &httpd.Store{W: &fakeResponseWriter{}, R: &http.Request{
 		Header: http.Header{"Cookie": {cookieStr}},
 	}}
 
@@ -61,7 +63,7 @@ func TestCookieValue(t *testing.T) {
 
 func TestRespond200(t *testing.T) {
 	w := &fakeResponseWriter{}
-	store := &Store{W: w}
+	store := &httpd.Store{W: w}
 	store.Respond200(nil)
 	if w.code != http.StatusOK || w.buf.Len() != 0 {
 		t.Fatalf("Respond200(nil) = %d %q, want %d nil", w.code, w.buf.Bytes(), http.StatusOK)
@@ -77,7 +79,7 @@ func TestRespond200(t *testing.T) {
 
 func TestRespondJson(t *testing.T) {
 	w := &fakeResponseWriter{header: make(http.Header)}
-	store := &Store{W: w}
+	store := &httpd.Store{W: w}
 
 	type jsonTest struct {
 		A int
@@ -99,7 +101,7 @@ func TestRespondJson(t *testing.T) {
 
 func TestRedirect(t *testing.T) {
 	w := &fakeResponseWriter{header: make(http.Header)}
-	store := &Store{W: w, R: &http.Request{}}
+	store := &httpd.Store{W: w, R: &http.Request{}}
 
 	url := "http://127.0.0.1:8000/redirect"
 	store.Redirect(url, http.StatusFound)
@@ -110,7 +112,7 @@ func TestRedirect(t *testing.T) {
 
 func TestError404(t *testing.T) {
 	w := &fakeResponseWriter{header: make(http.Header)}
-	store := &Store{W: w}
+	store := &httpd.Store{W: w}
 
 	msg := "TestError404"
 	store.Error404(msg)
@@ -121,7 +123,7 @@ func TestError404(t *testing.T) {
 
 func TestError500(t *testing.T) {
 	w := &fakeResponseWriter{header: make(http.Header)}
-	store := &Store{W: w}
+	store := &httpd.Store{W: w}
 
 	msg := "TestError500"
 	store.Error500(msg)

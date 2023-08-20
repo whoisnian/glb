@@ -1,15 +1,12 @@
-package httpd
+package httpd_test
 
 import (
 	"net/http"
 	"net/url"
 	"testing"
-)
 
-func noop(*Store) {}
-func createTestHandlerFunc(mark string) HandlerFunc {
-	return func(s *Store) { s.W.Write([]byte(mark)) }
-}
+	"github.com/whoisnian/glb/httpd"
+)
 
 func TestHandlePanic(t *testing.T) {
 	tests := []struct {
@@ -23,12 +20,12 @@ func TestHandlePanic(t *testing.T) {
 		{"invalidMethod", "/ddd", "GETT"},
 	}
 
-	mux := NewMux()
-	mux.Handle("/aaa", http.MethodGet, noop)
+	mux := httpd.NewMux()
+	mux.Handle("/aaa", http.MethodGet, func(*httpd.Store) {})
 	for _, tt := range tests {
 		subtest := func(t *testing.T) {
 			defer func() { _ = recover() }()
-			mux.Handle(tt.path, tt.method, noop)
+			mux.Handle(tt.path, tt.method, func(*httpd.Store) {})
 			t.Fatalf("Handle(%q, %q) should panic", tt.method, tt.path)
 		}
 		if !t.Run(tt.name, subtest) {
@@ -50,10 +47,12 @@ func TestHandleNotFound(t *testing.T) {
 	}
 
 	mark := "TestHandleNotFound"
-	resMark := mark + "\n"
 
-	mux := NewMux()
-	mux.HandleNotFound(func(store *Store) { store.Error404(mark) })
+	mux := httpd.NewMux()
+	mux.HandleNotFound(func(s *httpd.Store) {
+		s.W.WriteHeader(404)
+		s.W.Write([]byte(mark))
+	})
 	for _, tt := range tests {
 		u, err := url.ParseRequestURI(tt.url)
 		if err != nil {
@@ -62,8 +61,8 @@ func TestHandleNotFound(t *testing.T) {
 
 		w := &fakeResponseWriter{header: make(http.Header)}
 		mux.ServeHTTP(w, &http.Request{Method: tt.method, URL: u})
-		if w.code != tt.code || w.buf.String() != resMark {
-			t.Fatalf("ServeHTTP(%q) return %d %q, want %d %q", tt.url, w.code, w.buf.String(), tt.code, resMark)
+		if w.code != tt.code || w.buf.String() != mark {
+			t.Fatalf("ServeHTTP(%q) return %d %q, want %d %q", tt.url, w.code, w.buf.String(), tt.code, mark)
 		}
 	}
 }
@@ -76,7 +75,7 @@ func TestServeHTTP(t *testing.T) {
 	}{
 		{"/aaa", http.MethodGet, "get_aaa"},
 		{"/bbb/:id", http.MethodPost, "post_bbb"},
-		{"/ccc", MethodAll, "any_ccc"},
+		{"/ccc", httpd.MethodAll, "any_ccc"},
 		{"/ccc", http.MethodGet, "get_ccc"},
 		{"/ddd/*", http.MethodPut, "put_ddd"},
 		{"/ddd/eee", http.MethodPut, "put_ddd_eee"},
@@ -103,9 +102,10 @@ func TestServeHTTP(t *testing.T) {
 		{"/fff", http.MethodGet, 404, "404 not found\n"},
 	}
 
-	mux := NewMux()
+	mux := httpd.NewMux()
 	for _, tt := range routes {
-		mux.Handle(tt.path, tt.method, createTestHandlerFunc(tt.mark))
+		tmp := []byte(tt.mark) // avoid sharing loop variable in anonymous function
+		mux.Handle(tt.path, tt.method, func(s *httpd.Store) { s.W.Write(tmp) })
 	}
 
 	for _, tt := range tests {

@@ -32,7 +32,7 @@ func TestRoute(t *testing.T) {
 	root := new(treeNode)
 	var maxParams int = 0
 	for _, tt := range tests {
-		info := newRouteInfo(tt.path, tt.method, createTestHandlerFunc(tt.method+tt.path))
+		info := newRouteInfo(tt.path, tt.method, func(*Store) {})
 		paramsCnt, err := parseRoute(root, tt.path, tt.method, info)
 		if err != nil {
 			t.Fatalf("parseRoute: %v", err)
@@ -56,11 +56,8 @@ func TestRoute(t *testing.T) {
 		if info == nil {
 			t.Fatalf("routeInfo for %q not found", tt.url)
 		}
-		w := &fakeResponseWriter{}
-		store := &Store{w, &http.Request{}, &params, info}
-		info.HandlerFunc(store)
-		if w.code != http.StatusOK || w.buf.String() != tt.method+tt.path {
-			t.Fatalf("url %q match %q, want %q", tt.url, w.buf.String(), tt.method+tt.path)
+		if info.Method != tt.method || info.Path != tt.path {
+			t.Fatalf("url %q match %q %q, want %q %q", tt.url, info.Method, info.Path, tt.method, tt.path)
 		}
 	}
 }
@@ -87,7 +84,7 @@ func TestRouteParam(t *testing.T) {
 	root := new(treeNode)
 	var maxParams int = 0
 	for _, tt := range tests {
-		info := newRouteInfo(tt.path, tt.method, createTestHandlerFunc(tt.method+tt.path))
+		info := newRouteInfo(tt.path, tt.method, func(*Store) {})
 		paramsCnt, err := parseRoute(root, tt.path, tt.method, info)
 		if err != nil {
 			t.Fatalf("parseRoute: %v", err)
