@@ -13,18 +13,18 @@ var colorTests = []struct {
 	ansi string
 	term []byte
 }{
-	{"Black", ansi.Black, escape.Black},
-	{"Red", ansi.Red, escape.Red},
-	{"Green", ansi.Green, escape.Green},
-	{"Yellow", ansi.Yellow, escape.Yellow},
-	{"Blue", ansi.Blue, escape.Blue},
-	{"Magenta", ansi.Magenta, escape.Magenta},
-	{"Cyan", ansi.Cyan, escape.Cyan},
-	{"White", ansi.White, escape.White},
-	{"Reset", ansi.Reset, escape.Reset},
+	{"BlackFG", ansi.BlackFG, escape.Black},
+	{"RedFG", ansi.RedFG, escape.Red},
+	{"GreenFG", ansi.GreenFG, escape.Green},
+	{"YellowFG", ansi.YellowFG, escape.Yellow},
+	{"BlueFG", ansi.BlueFG, escape.Blue},
+	{"MagentaFG", ansi.MagentaFG, escape.Magenta},
+	{"CyanFG", ansi.CyanFG, escape.Cyan},
+	{"WhiteFG", ansi.WhiteFG, escape.White},
+	{"ResetAll", ansi.ResetAll, escape.Reset},
 }
 
-func TestColor(t *testing.T) {
+func TestColorFG(t *testing.T) {
 	for _, test := range colorTests {
 		if test.ansi != string(test.term) {
 			t.Errorf("ansi.%s: got %q, want %q", test.name, test.ansi, test.term)
