@@ -2,7 +2,11 @@ package ansi
 
 import (
 	"fmt"
+	"os"
+	"runtime"
 	"strings"
+
+	"golang.org/x/term"
 )
 
 // terminfo
@@ -45,4 +49,22 @@ func SetCursorPos(row, col int) string {
 		col = 1
 	}
 	return fmt.Sprintf(SetCursorAddress, row, col)
+}
+
+// Supported reports if the ANSI escape sequences are supported. Example:
+//
+//	if ansi.Supported(int(os.Stdout.Fd())) {
+//		fmt.Println(ansi.RedFG, "ERROR", ansi.Reset)
+//	}
+func Supported(fd int) bool {
+	if term.IsTerminal(fd) {
+		if runtime.GOOS == "windows" {
+			// https://github.com/microsoft/terminal/issues/1040
+			_, ok := os.LookupEnv("WT_SESSION")
+			return ok
+		}
+		return true
+	} else {
+		return false
+	}
 }

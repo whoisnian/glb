@@ -1,11 +1,5 @@
 package ansi
 
-import (
-	"os"
-
-	"golang.org/x/term"
-)
-
 // color
 const (
 	BlackFG   string = "\x1b[30m"
@@ -26,13 +20,14 @@ const (
 	CyanBG    string = "\x1b[46m"
 	WhiteBG   string = "\x1b[47m"
 
-	ResetAll string = "\x1b[0m"
+	Reset        string = "\x1b[0m"
+	Bold         string = "\x1b[1m"
+	Faint        string = "\x1b[2m"
+	Italic       string = "\x1b[3m"
+	Underline    string = "\x1b[4m"
+	BlinkSlow    string = "\x1b[5m"
+	BlinkRapid   string = "\x1b[6m"
+	ReverseVideo string = "\x1b[7m"
+	Concealed    string = "\x1b[8m"
+	CrossedOut   string = "\x1b[9m"
 )
-
-func IsColorSupported() bool {
-	if term.IsTerminal(int(os.Stdout.Fd())) {
-		return true
-	} else {
-		return false
-	}
-}

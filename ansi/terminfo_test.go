@@ -1,6 +1,7 @@
 package ansi_test
 
 import (
+	"os"
 	"testing"
 
 	"github.com/whoisnian/glb/ansi"
@@ -56,5 +57,18 @@ func TestSetCursorPos(t *testing.T) {
 		if got := ansi.SetCursorPos(test.input[0], test.input[1]); got != test.want {
 			t.Errorf("SetCursorPos(%d, %d) = %q, want %q", test.input[0], test.input[1], got, test.want)
 		}
+	}
+}
+
+func TestSupported(t *testing.T) {
+	fi, err := os.CreateTemp("", "TestSupported_")
+	if err != nil {
+		t.Fatalf("CreateTemp: %v", err)
+	}
+	defer os.Remove(fi.Name())
+	defer fi.Close()
+
+	if ansi.Supported(int(fi.Fd())) {
+		t.Errorf("ansi.Supported(file) = true, want false")
 	}
 }

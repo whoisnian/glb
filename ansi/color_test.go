@@ -21,7 +21,7 @@ var colorTests = []struct {
 	{"MagentaFG", ansi.MagentaFG, escape.Magenta},
 	{"CyanFG", ansi.CyanFG, escape.Cyan},
 	{"WhiteFG", ansi.WhiteFG, escape.White},
-	{"ResetAll", ansi.ResetAll, escape.Reset},
+	{"Reset", ansi.Reset, escape.Reset},
 }
 
 func TestColorFG(t *testing.T) {
