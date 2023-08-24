@@ -51,11 +51,11 @@ func SetDebug(enable bool) {
 func SetColorful(enable bool) {
 	colorful = enable
 	if enable {
-		tagI = ansi.Green + labelI + ansi.Reset
-		tagW = ansi.Yellow + labelW + ansi.Reset
-		tagE = ansi.Red + labelE + ansi.Reset
-		tagD = ansi.Magenta + labelD + ansi.Reset
-		tagR = ansi.Blue + labelR + ansi.Reset
+		tagI = ansi.GreenFG + labelI + ansi.Reset
+		tagW = ansi.YellowFG + labelW + ansi.Reset
+		tagE = ansi.RedFG + labelE + ansi.Reset
+		tagD = ansi.MagentaFG + labelD + ansi.Reset
+		tagR = ansi.BlueFG + labelR + ansi.Reset
 	} else {
 		tagI, tagW, tagE, tagD, tagR = labelI, labelW, labelE, labelD, labelR
 	}
