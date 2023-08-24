@@ -18,8 +18,8 @@ func TestSeekAndReadAll(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateTemp: %v", err)
 	}
-	defer f.Close()
 	defer os.Remove(f.Name())
+	defer f.Close()
 
 	checkEqualWant := func(want []byte) {
 		if data, err := ioutil.SeekAndReadAll(f); err != nil {
