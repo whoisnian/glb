@@ -2,6 +2,7 @@ package ansi
 
 // color
 const (
+	// foreground
 	BlackFG   string = "\x1b[30m"
 	RedFG     string = "\x1b[31m"
 	GreenFG   string = "\x1b[32m"
@@ -11,6 +12,7 @@ const (
 	CyanFG    string = "\x1b[36m"
 	WhiteFG   string = "\x1b[37m"
 
+	// background
 	BlackBG   string = "\x1b[40m"
 	RedBG     string = "\x1b[41m"
 	GreenBG   string = "\x1b[42m"
@@ -20,6 +22,7 @@ const (
 	CyanBG    string = "\x1b[46m"
 	WhiteBG   string = "\x1b[47m"
 
+	// other
 	Reset        string = "\x1b[0m"
 	Bold         string = "\x1b[1m"
 	Faint        string = "\x1b[2m"
