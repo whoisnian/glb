@@ -24,81 +24,81 @@ var (
 )
 
 func resetLogger() {
-	logger.SetOutput(os.Stdout, os.Stderr)
+	logger.SetOutput(os.Stderr)
 	logger.SetDebug(false)
 	logger.SetColorful(false)
 }
 
 func TestOutput(t *testing.T) {
-	var stdout, stderr bytes.Buffer
-	logger.SetOutput(&stdout, &stderr)
+	var buf bytes.Buffer
+	logger.SetOutput(&buf)
 	t.Cleanup(resetLogger)
 
-	stdout.Reset()
+	buf.Reset()
 	logger.Info(Text)
-	if !reForPlainLabel.Match(stdout.Bytes()) {
-		t.Fatalf("log should match %q is %q", reForPlainLabel, stdout.Bytes())
+	if !reForPlainLabel.Match(buf.Bytes()) {
+		t.Fatalf("log should match %q is %q", reForPlainLabel, buf.Bytes())
 	}
 
-	stdout.Reset()
+	buf.Reset()
 	logger.Warn(Text)
-	if !reForPlainLabel.Match(stdout.Bytes()) {
-		t.Fatalf("log should match %q is %q", reForPlainLabel, stdout.Bytes())
+	if !reForPlainLabel.Match(buf.Bytes()) {
+		t.Fatalf("log should match %q is %q", reForPlainLabel, buf.Bytes())
 	}
 
-	stderr.Reset()
+	buf.Reset()
 	logger.Error(Text)
-	if !reForPlainLabel.Match(stderr.Bytes()) {
-		t.Fatalf("log should match %q is %q", reForPlainLabel, stderr.Bytes())
+	if !reForPlainLabel.Match(buf.Bytes()) {
+		t.Fatalf("log should match %q is %q", reForPlainLabel, buf.Bytes())
 	}
 }
 
 func TestDebug(t *testing.T) {
-	var stdout bytes.Buffer
-	logger.SetOutput(&stdout, nil)
+	var buf bytes.Buffer
+	logger.SetOutput(&buf)
 	t.Cleanup(resetLogger)
 
-	stdout.Reset()
+	buf.Reset()
 	logger.Debug(Text)
-	if logger.IsDebug() || stdout.Len() != 0 {
+	if logger.IsDebug() || buf.Len() != 0 {
 		t.Fatal("debug log should be disable if debug=false")
 	}
 
-	stdout.Reset()
+	buf.Reset()
 	logger.SetDebug(true)
 	logger.Debug(Text)
-	if !reForPlainLabel.Match(stdout.Bytes()) {
-		t.Fatalf("log should match %q is %q", reForPlainLabel, stdout.Bytes())
+	if !reForPlainLabel.Match(buf.Bytes()) {
+		t.Fatalf("log should match %q is %q", reForPlainLabel, buf.Bytes())
 	}
 }
 
 func TestColorful(t *testing.T) {
-	var stdout bytes.Buffer
-	logger.SetOutput(&stdout, nil)
+	var buf bytes.Buffer
+	logger.SetOutput(&buf)
 	t.Cleanup(resetLogger)
 
-	stdout.Reset()
+	buf.Reset()
 	logger.Info(Text)
-	if logger.IsColorful() || !reForPlainLabel.Match(stdout.Bytes()) {
-		t.Fatalf("log should match %q is %q", reForPlainLabel, stdout.Bytes())
+	if logger.IsColorful() || !reForPlainLabel.Match(buf.Bytes()) {
+		t.Fatalf("log should match %q is %q", reForPlainLabel, buf.Bytes())
 	}
 
-	stdout.Reset()
+	buf.Reset()
 	logger.SetColorful(true)
 	logger.Info(Text)
-	if !reForColorLabel.Match(stdout.Bytes()) {
-		t.Fatalf("log should match %q is %q", reForPlainLabel, stdout.Bytes())
+	if !reForColorLabel.Match(buf.Bytes()) {
+		t.Fatalf("log should match %q is %q", reForPlainLabel, buf.Bytes())
 	}
 }
 
 func TestPanic(t *testing.T) {
-	var stderr bytes.Buffer
-	logger.SetOutput(nil, &stderr)
+	var buf bytes.Buffer
+	logger.SetOutput(&buf)
 	t.Cleanup(resetLogger)
 
 	defer func() {
-		if recover() == nil || !reForPlainLabel.Match(stderr.Bytes()) {
-			t.Fatalf("panic log should match %q is %q", reForPlainLabel, stderr.Bytes())
+		if recover() == nil || !reForPlainLabel.Match(buf.Bytes()) {
+			t.Fatalf("panic log should match %q is %q", reForPlainLabel, buf.Bytes())
 		}
 	}()
 

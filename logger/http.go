@@ -81,7 +81,7 @@ func Recovery(handler http.Handler) http.Handler {
 				buf := make([]byte, size)
 				buf = buf[:runtime.Stack(buf, false)]
 
-				lerr.Output(2, tagE+" panic: "+fmt.Sprint(err)+"\n"+string(buf))
+				lout.Output(2, tagE+" panic: "+fmt.Sprint(err)+"\n"+string(buf))
 				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			}
 		}()

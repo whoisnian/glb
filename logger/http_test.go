@@ -41,8 +41,8 @@ func requestAndCheck(t *testing.T, url string, code int, body []byte) {
 }
 
 func TestReq4(t *testing.T) {
-	var stdout bytes.Buffer
-	logger.SetOutput(&stdout, nil)
+	var buf bytes.Buffer
+	logger.SetOutput(&buf)
 	t.Cleanup(resetLogger)
 
 	mux := http.NewServeMux()
@@ -64,28 +64,28 @@ func TestReq4(t *testing.T) {
 	}()
 	defer server.Shutdown(context.Background())
 
-	stdout.Reset()
+	buf.Reset()
 	requestAndCheck(t, "http://"+server.Addr+"/200", http.StatusOK, httpResp)
-	if !reForRequest.Match(stdout.Bytes()) {
-		t.Fatalf("request log should match %q is %q", reForRequest, stdout.Bytes())
+	if !reForRequest.Match(buf.Bytes()) {
+		t.Fatalf("request log should match %q is %q", reForRequest, buf.Bytes())
 	}
 
-	stdout.Reset()
+	buf.Reset()
 	requestAndCheck(t, "http://"+server.Addr+"/400", http.StatusBadRequest, httpResp)
-	if !reForRequest.Match(stdout.Bytes()) {
-		t.Fatalf("request log should match %q is %q", reForRequest, stdout.Bytes())
+	if !reForRequest.Match(buf.Bytes()) {
+		t.Fatalf("request log should match %q is %q", reForRequest, buf.Bytes())
 	}
 
-	stdout.Reset()
+	buf.Reset()
 	requestAndCheck(t, "http://"+server.Addr+"/500", http.StatusInternalServerError, httpResp)
-	if !reForRequest.Match(stdout.Bytes()) {
-		t.Fatalf("request log should match %q is %q", reForRequest, stdout.Bytes())
+	if !reForRequest.Match(buf.Bytes()) {
+		t.Fatalf("request log should match %q is %q", reForRequest, buf.Bytes())
 	}
 }
 
 func TestReq6(t *testing.T) {
-	var stdout bytes.Buffer
-	logger.SetOutput(&stdout, nil)
+	var buf bytes.Buffer
+	logger.SetOutput(&buf)
 	t.Cleanup(resetLogger)
 
 	mux := http.NewServeMux()
@@ -107,28 +107,28 @@ func TestReq6(t *testing.T) {
 	}()
 	defer server.Shutdown(context.Background())
 
-	stdout.Reset()
+	buf.Reset()
 	requestAndCheck(t, "http://"+server.Addr+"/200", http.StatusOK, httpResp)
-	if !reForRequest.Match(stdout.Bytes()) {
-		t.Fatalf("request log should match %q is %q", reForRequest, stdout.Bytes())
+	if !reForRequest.Match(buf.Bytes()) {
+		t.Fatalf("request log should match %q is %q", reForRequest, buf.Bytes())
 	}
 
-	stdout.Reset()
+	buf.Reset()
 	requestAndCheck(t, "http://"+server.Addr+"/400", http.StatusBadRequest, httpResp)
-	if !reForRequest.Match(stdout.Bytes()) {
-		t.Fatalf("request log should match %q is %q", reForRequest, stdout.Bytes())
+	if !reForRequest.Match(buf.Bytes()) {
+		t.Fatalf("request log should match %q is %q", reForRequest, buf.Bytes())
 	}
 
-	stdout.Reset()
+	buf.Reset()
 	requestAndCheck(t, "http://"+server.Addr+"/500", http.StatusInternalServerError, httpResp)
-	if !reForRequest.Match(stdout.Bytes()) {
-		t.Fatalf("request log should match %q is %q", reForRequest, stdout.Bytes())
+	if !reForRequest.Match(buf.Bytes()) {
+		t.Fatalf("request log should match %q is %q", reForRequest, buf.Bytes())
 	}
 }
 
 func TestRecovery(t *testing.T) {
-	var stderr bytes.Buffer
-	logger.SetOutput(nil, &stderr)
+	var buf bytes.Buffer
+	logger.SetOutput(&buf)
 	t.Cleanup(resetLogger)
 
 	mux := http.NewServeMux()
@@ -145,16 +145,16 @@ func TestRecovery(t *testing.T) {
 	}()
 	defer server.Shutdown(context.Background())
 
-	stderr.Reset()
+	buf.Reset()
 	requestAndCheck(t, "http://"+server.Addr+"/panic", http.StatusInternalServerError, []byte(http.StatusText(http.StatusInternalServerError)+"\n"))
-	if !reForPanic.Match(stderr.Bytes()) {
-		t.Fatalf("request log should match %q is %s", reForPanic, stderr.Bytes())
+	if !reForPanic.Match(buf.Bytes()) {
+		t.Fatalf("request log should match %q is %s", reForPanic, buf.Bytes())
 	}
 }
 
 func TestRecoveryWithReq(t *testing.T) {
-	var stdout, stderr bytes.Buffer
-	logger.SetOutput(&stdout, &stderr)
+	var buf bytes.Buffer
+	logger.SetOutput(&buf)
 	t.Cleanup(resetLogger)
 
 	mux := http.NewServeMux()
@@ -171,13 +171,16 @@ func TestRecoveryWithReq(t *testing.T) {
 	}()
 	defer server.Shutdown(context.Background())
 
-	stdout.Reset()
-	stderr.Reset()
+	buf.Reset()
 	requestAndCheck(t, "http://"+server.Addr+"/panic", http.StatusInternalServerError, []byte(http.StatusText(http.StatusInternalServerError)+"\n"))
-	if !reForRequest.Match(stdout.Bytes()) {
-		t.Fatalf("request log should match %q is %q", reForRequest, stdout.Bytes())
+	end := bytes.LastIndexByte(buf.Bytes()[:buf.Len()-1], '\n')
+	if end < 0 {
+		t.Fatalf("\\n not found in request log")
 	}
-	if !reForPanic.Match(stderr.Bytes()) {
-		t.Fatalf("request log should match %q is %s", reForPanic, stderr.Bytes())
+	if !reForPanic.Match(buf.Bytes()[0 : end+1]) {
+		t.Fatalf("request log should match %q is %s", reForPanic, buf.Bytes()[0:end+1])
+	}
+	if !reForRequest.Match(buf.Bytes()[end+1:]) {
+		t.Fatalf("request log should match %q is %q", reForRequest, buf.Bytes()[end+1:])
 	}
 }

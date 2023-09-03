@@ -15,31 +15,24 @@ import (
 	"os"
 
 	"github.com/whoisnian/glb/ansi"
-	"golang.org/x/term"
 )
 
 const labelI, labelW, labelE, labelD, labelR string = "[I]", "[W]", "[E]", "[D]", "[R]"
 
 var debug, colorful bool = false, false
 var tagI, tagW, tagE, tagD, tagR string = labelI, labelW, labelE, labelD, labelR
-var lout, lerr *log.Logger
+var lout *log.Logger
 
 func init() {
-	lout = log.New(os.Stdout, "", log.LstdFlags)
-	lerr = log.New(os.Stderr, "", log.LstdFlags)
-	if term.IsTerminal(int(os.Stdout.Fd())) {
+	lout = log.New(os.Stderr, "", log.LstdFlags)
+	if ansi.IsSupported(os.Stderr.Fd()) {
 		SetColorful(true)
 	}
 }
 
 // SetOutput redirects stdout/stderr of the logger.
-func SetOutput(stdout, stderr io.Writer) {
-	if stdout != nil {
-		lout.SetOutput(stdout)
-	}
-	if stderr != nil {
-		lerr.SetOutput(stderr)
-	}
+func SetOutput(w io.Writer) {
+	lout.SetOutput(w)
 }
 
 // SetDebug set debug flag.
@@ -83,7 +76,7 @@ func Warn(v ...interface{}) {
 
 // Error writes error log to stderr with tagE.
 func Error(v ...interface{}) {
-	lerr.Output(2, tagE+" "+fmt.Sprint(v...)+"\n")
+	lout.Output(2, tagE+" "+fmt.Sprint(v...)+"\n")
 }
 
 // Debug writes debug log to stdout with tagD.
@@ -104,12 +97,12 @@ func Debug(v ...interface{}) {
 // Panic is equivalent to logger.Error() followed by a call to panic().
 func Panic(v ...interface{}) {
 	msg := fmt.Sprint(v...)
-	lerr.Output(2, tagE+" "+msg+"\n")
+	lout.Output(2, tagE+" "+msg+"\n")
 	panic(msg)
 }
 
 // Fatal is equivalent to logger.Error() followed by a call to os.Exit(1).
 func Fatal(v ...interface{}) {
-	lerr.Output(2, tagE+" "+fmt.Sprint(v...)+"\n")
+	lout.Output(2, tagE+" "+fmt.Sprint(v...)+"\n")
 	os.Exit(1)
 }
