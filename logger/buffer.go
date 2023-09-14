@@ -2,7 +2,6 @@ package logger
 
 import (
 	"sync"
-	"time"
 )
 
 var bufferPool = sync.Pool{
@@ -12,7 +11,7 @@ var bufferPool = sync.Pool{
 	},
 }
 
-func newBufferFromPool() *[]byte {
+func newBuffer() *[]byte {
 	return bufferPool.Get().(*[]byte)
 }
 
@@ -22,23 +21,6 @@ func freeBuffer(buf *[]byte) {
 		*buf = (*buf)[:0]
 		bufferPool.Put(buf)
 	}
-}
-
-func appendDateTime(buf *[]byte, t time.Time) {
-	year, month, day := t.Date()
-	appendIntWidth4(buf, year)
-	*buf = append(*buf, '-')
-	appendIntWidth2(buf, int(month))
-	*buf = append(*buf, '-')
-	appendIntWidth2(buf, day)
-	*buf = append(*buf, ' ')
-
-	hour, min, sec := t.Clock()
-	appendIntWidth2(buf, hour)
-	*buf = append(*buf, ':')
-	appendIntWidth2(buf, min)
-	*buf = append(*buf, ':')
-	appendIntWidth2(buf, sec)
 }
 
 const smallsString = "00010203040506070809" +
@@ -53,24 +35,24 @@ const smallsString = "00010203040506070809" +
 	"90919293949596979899"
 
 // 0 <= i <= 9
-// func appendIntWidth1(buf *[]byte, i int) {
-// 	*buf = append(*buf, smallsString[i*2+1])
-// }
+func appendIntWidth1(buf *[]byte, i int) {
+	*buf = append(*buf, smallsString[i*2+1])
+}
 
-// 0 <= i <= 99
+// 00 <= i <= 99
 func appendIntWidth2(buf *[]byte, i int) {
 	*buf = append(*buf, smallsString[i*2:i*2+2]...)
 }
 
-// 0 <= i <= 999
-// func appendIntWidth3(buf *[]byte, i int) {
-// 	l := i / 100
-// 	i -= l * 100
-// 	*buf = append(*buf, smallsString[l*2+1])
-// 	*buf = append(*buf, smallsString[i*2:i*2+2]...)
-// }
+// 000 <= i <= 999
+func appendIntWidth3(buf *[]byte, i int) {
+	l := i / 100
+	i -= l * 100
+	*buf = append(*buf, smallsString[l*2+1])
+	*buf = append(*buf, smallsString[i*2:i*2+2]...)
+}
 
-// 0 <= i <= 9999
+// 0000 <= i <= 9999
 func appendIntWidth4(buf *[]byte, i int) {
 	l := i / 100
 	i -= l * 100

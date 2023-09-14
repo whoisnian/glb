@@ -2,12 +2,14 @@ package logger
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log/slog"
 	"runtime"
 	"slices"
 	"strconv"
 	"sync"
+	"time"
 )
 
 type NanoHandler struct {
@@ -42,7 +44,7 @@ func (h *NanoHandler) Enabled(_ context.Context, l slog.Level) bool {
 func (h *NanoHandler) WithAttrs(as []slog.Attr) slog.Handler {
 	h2 := h.clone()
 	for _, a := range as {
-		appendNanoValue(&h2.preformatted, a.Value.Resolve())
+		appendNanoValue(&h2.preformatted, a.Value)
 	}
 	return h2
 }
@@ -52,14 +54,15 @@ func (h *NanoHandler) WithGroup(name string) slog.Handler {
 }
 
 func (h *NanoHandler) Handle(_ context.Context, r slog.Record) error {
-	buf := newBufferFromPool()
+	buf := newBuffer()
 	defer freeBuffer(buf)
 
+	// time
 	appendDateTime(buf, r.Time)
-
+	// level
 	*buf = append(*buf, ' ')
 	appendNanoLevel(buf, r.Level, h.opts.Colorful)
-
+	// source
 	if h.opts.AddSource {
 		f, _ := runtime.CallersFrames([]uintptr{r.PC}).Next()
 		idx, first := 0, false
@@ -76,7 +79,7 @@ func (h *NanoHandler) Handle(_ context.Context, r slog.Record) error {
 		*buf = append(*buf, ':')
 		*buf = strconv.AppendInt(*buf, int64(f.Line), 10)
 	}
-
+	// msg
 	*buf = append(*buf, ' ')
 	*buf = append(*buf, r.Message...)
 
@@ -86,7 +89,7 @@ func (h *NanoHandler) Handle(_ context.Context, r slog.Record) error {
 
 	if r.NumAttrs() > 0 {
 		r.Attrs(func(a slog.Attr) bool {
-			appendNanoValue(buf, a.Value.Resolve())
+			appendNanoValue(buf, a.Value)
 			return true
 		})
 	}
@@ -100,12 +103,50 @@ func (h *NanoHandler) Handle(_ context.Context, r slog.Record) error {
 
 func appendNanoValue(buf *[]byte, v slog.Value) {
 	switch v.Kind() {
-	case slog.KindGroup:
-		for _, a := range v.Group() {
-			appendNanoValue(buf, a.Value.Resolve())
-		}
-	default:
+	case slog.KindString:
 		*buf = append(*buf, ' ')
 		*buf = append(*buf, v.String()...)
+	case slog.KindInt64:
+		*buf = append(*buf, ' ')
+		*buf = strconv.AppendInt(*buf, v.Int64(), 10)
+	case slog.KindUint64:
+		*buf = append(*buf, ' ')
+		*buf = strconv.AppendUint(*buf, v.Uint64(), 10)
+	case slog.KindFloat64:
+		*buf = append(*buf, ' ')
+		*buf = strconv.AppendFloat(*buf, v.Float64(), 'g', -1, 64)
+	case slog.KindBool:
+		*buf = append(*buf, ' ')
+		*buf = strconv.AppendBool(*buf, v.Bool())
+	case slog.KindDuration:
+		*buf = append(*buf, ' ')
+		*buf = append(*buf, v.Duration().String()...)
+	case slog.KindTime:
+		*buf = append(*buf, ' ')
+		*buf = v.Time().AppendFormat(*buf, time.RFC3339Nano)
+	case slog.KindGroup:
+		for _, a := range v.Group() {
+			appendNanoValue(buf, a.Value)
+		}
+	case slog.KindAny, slog.KindLogValuer:
+		*buf = append(*buf, ' ')
+		*buf = fmt.Append(*buf, v.Any())
 	}
+}
+
+func appendDateTime(buf *[]byte, t time.Time) {
+	year, month, day := t.Date()
+	appendIntWidth4(buf, year)
+	*buf = append(*buf, '-')
+	appendIntWidth2(buf, int(month))
+	*buf = append(*buf, '-')
+	appendIntWidth2(buf, day)
+	*buf = append(*buf, ' ')
+
+	hour, min, sec := t.Clock()
+	appendIntWidth2(buf, hour)
+	*buf = append(*buf, ':')
+	appendIntWidth2(buf, min)
+	*buf = append(*buf, ':')
+	appendIntWidth2(buf, sec)
 }
