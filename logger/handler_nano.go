@@ -65,7 +65,7 @@ func (h *NanoHandler) Handle(_ context.Context, r slog.Record) error {
 	appendDateTime(buf, r.Time)
 	// level
 	*buf = append(*buf, ' ')
-	appendNanoLevel(buf, r.Level, h.opts.Colorful)
+	appendShortLevel(buf, r.Level, h.opts.Colorful)
 	// source
 	if h.opts.AddSource {
 		*buf = append(*buf, ' ')

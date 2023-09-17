@@ -83,7 +83,7 @@ func (h *TextHandler) Handle(_ context.Context, r slog.Record) error {
 	*buf = append(*buf, ' ')
 	*buf = append(*buf, slog.LevelKey...)
 	*buf = append(*buf, '=')
-	appendTextLevel(buf, r.Level, h.opts.Colorful)
+	appendFullLevel(buf, r.Level, h.opts.Colorful)
 	// source
 	if h.opts.AddSource {
 		*buf = append(*buf, ' ')
@@ -154,17 +154,22 @@ func appendTextValue(buf *[]byte, v slog.Value) {
 	case slog.KindTime:
 		*buf = v.Time().AppendFormat(*buf, time.RFC3339)
 	case slog.KindAny, slog.KindLogValuer:
-		if vv, ok := v.Any().(encoding.TextMarshaler); ok {
+		va := v.Any()
+		if vv, ok := va.(encoding.TextMarshaler); ok {
 			if data, err := vv.MarshalText(); err != nil {
 				appendTextString(buf, err.Error())
 			} else {
 				appendTextString(buf, string(data))
 			}
-			break
-		} else if vv, ok := v.Any().([]byte); ok {
+			return
+		} else if vv, ok := va.(error); ok {
+			appendTextString(buf, vv.Error())
+			return
+		} else if vv, ok := va.([]byte); ok {
 			appendTextString(buf, string(vv))
+			return
 		}
-		appendTextString(buf, fmt.Sprint(v.Any()))
+		appendTextString(buf, fmt.Sprint(va))
 	}
 }
 
