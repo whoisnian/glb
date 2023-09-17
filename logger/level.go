@@ -12,9 +12,6 @@ const (
 	LevelWarn  slog.Level = 8  // For issues that do not affect workflow
 	LevelError slog.Level = 12 // For issues that do affect workflow
 	LevelFatal slog.Level = 16 // For issues that require immediate termination
-
-	offsetShort = 0
-	offsetFull  = 2
 )
 
 func ValidLevel(l slog.Level) bool {
@@ -40,16 +37,16 @@ var labelList = []string{
 
 func appendShortLevel(buf *[]byte, l slog.Level, colorful bool) {
 	if colorful {
-		*buf = append(*buf, labelList[l+offsetShort+1]...)
+		*buf = append(*buf, labelList[l+1]...)
 	} else {
-		*buf = append(*buf, labelList[l+offsetShort]...)
+		*buf = append(*buf, labelList[l]...)
 	}
 }
 
 func appendFullLevel(buf *[]byte, l slog.Level, colorful bool) {
 	if colorful {
-		*buf = append(*buf, labelList[l+offsetFull+1]...)
+		*buf = append(*buf, labelList[l+3]...)
 	} else {
-		*buf = append(*buf, labelList[l+offsetFull]...)
+		*buf = append(*buf, labelList[l+2]...)
 	}
 }

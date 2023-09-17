@@ -18,6 +18,7 @@ import (
 	"unicode"
 )
 
+// TextHandler formats slog.Record as a sequence of key=value pairs separated by spaces and followed by a newline.
 type TextHandler struct {
 	opts         *Options
 	preformatted []byte

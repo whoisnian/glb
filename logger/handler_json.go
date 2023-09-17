@@ -19,6 +19,7 @@ import (
 	"unicode/utf8"
 )
 
+// JsonHandler formats slog.Record as line-delimited JSON objects.
 type JsonHandler struct {
 	opts         *Options
 	preformatted []byte

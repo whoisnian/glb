@@ -12,6 +12,7 @@ import (
 	"time"
 )
 
+// NanoHandler formats slog.Record as a sequence of value strings without attribute keys to minimize log length.
 type NanoHandler struct {
 	opts         *Options
 	preformatted []byte
