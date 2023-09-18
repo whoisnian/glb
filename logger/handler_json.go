@@ -182,15 +182,19 @@ func appendJsonValue(buf *[]byte, v slog.Value) {
 		va := v.Any()
 		if _, ok := va.(json.Marshaler); ok {
 			appendJsonMarshal(buf, v)
-			return
 		} else if vv, ok := va.(error); ok {
-			appendTextString(buf, vv.Error())
-			return
+			*buf = append(*buf, '"')
+			appendJsonString(buf, vv.Error())
+			*buf = append(*buf, '"')
 		} else if vv, ok := va.([]byte); ok {
-			appendTextString(buf, string(vv))
-			return
+			*buf = append(*buf, '"')
+			appendJsonString(buf, string(vv))
+			*buf = append(*buf, '"')
+		} else {
+			*buf = append(*buf, '"')
+			appendJsonString(buf, fmt.Sprint(va))
+			*buf = append(*buf, '"')
 		}
-		appendTextString(buf, fmt.Sprint(va))
 	}
 }
 
@@ -199,7 +203,9 @@ func appendJsonMarshal(buf *[]byte, v any) {
 	enc := json.NewEncoder(&bb)
 	enc.SetEscapeHTML(false)
 	if err := enc.Encode(v); err != nil {
-		appendTextString(buf, err.Error())
+		*buf = append(*buf, '"')
+		appendJsonString(buf, err.Error())
+		*buf = append(*buf, '"')
 		return
 	}
 	bs := bb.Bytes()

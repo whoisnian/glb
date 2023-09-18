@@ -162,15 +162,13 @@ func appendTextValue(buf *[]byte, v slog.Value) {
 			} else {
 				appendTextString(buf, string(data))
 			}
-			return
 		} else if vv, ok := va.(error); ok {
 			appendTextString(buf, vv.Error())
-			return
 		} else if vv, ok := va.([]byte); ok {
 			appendTextString(buf, string(vv))
-			return
+		} else {
+			appendTextString(buf, fmt.Sprint(va))
 		}
-		appendTextString(buf, fmt.Sprint(va))
 	}
 }
 
