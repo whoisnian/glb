@@ -21,40 +21,36 @@ import (
 
 // JsonHandler formats slog.Record as line-delimited JSON objects.
 type JsonHandler struct {
-	opts         *Options
+	*Options
+	outMu *sync.Mutex
+	out   io.Writer
+
 	preformatted []byte
 	nOpenGroups  int
 	addSep       bool
-
-	outMu *sync.Mutex
-	out   io.Writer
 }
 
 func NewJsonHandler(w io.Writer, opts *Options) *JsonHandler {
 	return &JsonHandler{
-		opts:   opts,
-		addSep: true,
-		outMu:  &sync.Mutex{},
-		out:    w,
+		Options: opts,
+		outMu:   &sync.Mutex{},
+		out:     w,
+		addSep:  true,
 	}
 }
 
 func (h *JsonHandler) clone() *JsonHandler {
 	return &JsonHandler{
-		opts:         h.opts,
+		Options:      h.Options,
+		outMu:        h.outMu,
+		out:          h.out,
 		preformatted: slices.Clip(h.preformatted),
 		nOpenGroups:  h.nOpenGroups,
 		addSep:       h.addSep,
-		outMu:        h.outMu,
-		out:          h.out,
 	}
 }
 
-func (h *JsonHandler) Enabled(_ context.Context, l slog.Level) bool {
-	return l >= h.opts.Level
-}
-
-func (h *JsonHandler) WithAttrs(as []slog.Attr) slog.Handler {
+func (h *JsonHandler) WithAttrs(as []slog.Attr) Handler {
 	if len(as) == 0 {
 		return h
 	}
@@ -67,7 +63,7 @@ func (h *JsonHandler) WithAttrs(as []slog.Attr) slog.Handler {
 	return h2
 }
 
-func (h *JsonHandler) WithGroup(name string) slog.Handler {
+func (h *JsonHandler) WithGroup(name string) Handler {
 	h2 := h.clone()
 	if h2.addSep {
 		h2.preformatted = append(h2.preformatted, ',', '"')
@@ -95,10 +91,10 @@ func (h *JsonHandler) Handle(_ context.Context, r slog.Record) error {
 	*buf = append(*buf, '"', ',', '"')
 	*buf = append(*buf, slog.LevelKey...)
 	*buf = append(*buf, '"', ':', '"')
-	appendFullLevel(buf, r.Level, h.opts.Colorful)
+	appendFullLevel(buf, r.Level, h.Options.colorful)
 	*buf = append(*buf, '"')
 	// source
-	if h.opts.AddSource {
+	if h.Options.addSource {
 		*buf = append(*buf, ',', '"')
 		*buf = append(*buf, slog.SourceKey...)
 		*buf = append(*buf, '"', ':', '{')

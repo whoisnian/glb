@@ -14,35 +14,31 @@ import (
 
 // NanoHandler formats slog.Record as a sequence of value strings without attribute keys to minimize log length.
 type NanoHandler struct {
-	opts         *Options
-	preformatted []byte
-
+	*Options
 	outMu *sync.Mutex
 	out   io.Writer
+
+	preformatted []byte
 }
 
 func NewNanoHandler(w io.Writer, opts *Options) *NanoHandler {
 	return &NanoHandler{
-		opts:  opts,
-		outMu: &sync.Mutex{},
-		out:   w,
+		Options: opts,
+		outMu:   &sync.Mutex{},
+		out:     w,
 	}
 }
 
 func (h *NanoHandler) clone() *NanoHandler {
 	return &NanoHandler{
-		opts:         h.opts,
-		preformatted: slices.Clip(h.preformatted),
+		Options:      h.Options,
 		outMu:        h.outMu,
 		out:          h.out,
+		preformatted: slices.Clip(h.preformatted),
 	}
 }
 
-func (h *NanoHandler) Enabled(_ context.Context, l slog.Level) bool {
-	return l >= h.opts.Level
-}
-
-func (h *NanoHandler) WithAttrs(as []slog.Attr) slog.Handler {
+func (h *NanoHandler) WithAttrs(as []slog.Attr) Handler {
 	if len(as) == 0 {
 		return h
 	}
@@ -54,7 +50,7 @@ func (h *NanoHandler) WithAttrs(as []slog.Attr) slog.Handler {
 	return h2
 }
 
-func (h *NanoHandler) WithGroup(name string) slog.Handler {
+func (h *NanoHandler) WithGroup(name string) Handler {
 	return h
 }
 
@@ -66,15 +62,17 @@ func (h *NanoHandler) Handle(_ context.Context, r slog.Record) error {
 	appendDateTime(buf, r.Time)
 	// level
 	*buf = append(*buf, ' ')
-	appendShortLevel(buf, r.Level, h.opts.Colorful)
+	appendShortLevel(buf, r.Level, h.Options.colorful)
 	// source
-	if h.opts.AddSource {
+	if h.Options.addSource {
 		*buf = append(*buf, ' ')
 		appendNanoSource(buf, r.PC)
 	}
 	// msg
-	*buf = append(*buf, ' ')
-	*buf = append(*buf, r.Message...)
+	if len(r.Message) > 0 {
+		*buf = append(*buf, ' ')
+		*buf = append(*buf, r.Message...)
+	}
 
 	if len(h.preformatted) > 0 {
 		*buf = append(*buf, h.preformatted...)

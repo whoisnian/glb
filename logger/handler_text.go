@@ -20,37 +20,33 @@ import (
 
 // TextHandler formats slog.Record as a sequence of key=value pairs separated by spaces and followed by a newline.
 type TextHandler struct {
-	opts         *Options
-	preformatted []byte
-	groupPrefix  string
-
+	*Options
 	outMu *sync.Mutex
 	out   io.Writer
+
+	preformatted []byte
+	groupPrefix  string
 }
 
 func NewTextHandler(w io.Writer, opts *Options) *TextHandler {
 	return &TextHandler{
-		opts:  opts,
-		outMu: &sync.Mutex{},
-		out:   w,
+		Options: opts,
+		outMu:   &sync.Mutex{},
+		out:     w,
 	}
 }
 
 func (h *TextHandler) clone() *TextHandler {
 	return &TextHandler{
-		opts:         h.opts,
-		preformatted: slices.Clip(h.preformatted),
-		groupPrefix:  h.groupPrefix,
+		Options:      h.Options,
 		outMu:        h.outMu,
 		out:          h.out,
+		preformatted: slices.Clip(h.preformatted),
+		groupPrefix:  h.groupPrefix,
 	}
 }
 
-func (h *TextHandler) Enabled(_ context.Context, l slog.Level) bool {
-	return l >= h.opts.Level
-}
-
-func (h *TextHandler) WithAttrs(as []slog.Attr) slog.Handler {
+func (h *TextHandler) WithAttrs(as []slog.Attr) Handler {
 	if len(as) == 0 {
 		return h
 	}
@@ -62,7 +58,7 @@ func (h *TextHandler) WithAttrs(as []slog.Attr) slog.Handler {
 	return h2
 }
 
-func (h *TextHandler) WithGroup(name string) slog.Handler {
+func (h *TextHandler) WithGroup(name string) Handler {
 	h2 := h.clone()
 	if len(h2.groupPrefix) == 0 {
 		h2.groupPrefix = name
@@ -84,9 +80,9 @@ func (h *TextHandler) Handle(_ context.Context, r slog.Record) error {
 	*buf = append(*buf, ' ')
 	*buf = append(*buf, slog.LevelKey...)
 	*buf = append(*buf, '=')
-	appendFullLevel(buf, r.Level, h.opts.Colorful)
+	appendFullLevel(buf, r.Level, h.Options.colorful)
 	// source
-	if h.opts.AddSource {
+	if h.Options.addSource {
 		*buf = append(*buf, ' ')
 		*buf = append(*buf, slog.SourceKey...)
 		*buf = append(*buf, '=')
