@@ -1,7 +1,3 @@
-// Copyright 2022 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-
 package logger
 
 import (
@@ -30,6 +26,8 @@ type JsonHandler struct {
 	addSep       bool
 }
 
+// NewJsonHandler creates a new JsonHandler with the given io.Writer and Options.
+// The Options should not be changed after first use.
 func NewJsonHandler(w io.Writer, opts *Options) *JsonHandler {
 	return &JsonHandler{
 		Options: opts,
@@ -50,19 +48,23 @@ func (h *JsonHandler) clone() *JsonHandler {
 	}
 }
 
-func (h *JsonHandler) WithAttrs(as []slog.Attr) Handler {
-	if len(as) == 0 {
+// WithAttrs returns a new JsonHandler whose attributes consists of h's attributes followed by attrs.
+// If attrs is empty, WithAttrs returns the origin JsonHandler.
+func (h *JsonHandler) WithAttrs(attrs []slog.Attr) Handler {
+	if len(attrs) == 0 {
 		return h
 	}
 
 	h2 := h.clone()
-	for _, a := range as {
+	for _, a := range attrs {
 		appendJsonAttr(&h2.preformatted, a, h.addSep)
 		h.addSep = true
 	}
 	return h2
 }
 
+// WithGroup returns a new JsonHandler that starts a group with the given name.
+// If name is empty, WithGroup returns the origin JsonHandler.
 func (h *JsonHandler) WithGroup(name string) Handler {
 	h2 := h.clone()
 	if h2.addSep {
@@ -77,6 +79,12 @@ func (h *JsonHandler) WithGroup(name string) Handler {
 	return h2
 }
 
+// Handle formats slog.Record as a JSON object on a single line.
+//
+// The time is output in [time.RFC3339Nano] format.
+//
+// An encoding failure does not cause Handle to return an error.
+// Instead, the error message is formatted as a string.
 func (h *JsonHandler) Handle(_ context.Context, r slog.Record) error {
 	buf := newBuffer()
 	defer freeBuffer(buf)

@@ -6,6 +6,7 @@ import (
 	"github.com/whoisnian/glb/ansi"
 )
 
+// logger's valid levels
 const (
 	LevelDebug slog.Level = 0  // For debugging in dev environment
 	LevelInfo  slog.Level = 4  // For parameters, requests, responses and metrics
@@ -14,6 +15,7 @@ const (
 	LevelFatal slog.Level = 16 // For issues that require immediate termination
 )
 
+// ValidLevel reports whether the given level is one of logger's valid levels.
 func ValidLevel(l slog.Level) bool {
 	return l&3 == 0 && l >= 0 && l <= 16
 }

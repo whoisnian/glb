@@ -1,7 +1,3 @@
-// Copyright 2022 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-
 package logger
 
 import (
@@ -28,6 +24,8 @@ type TextHandler struct {
 	groupPrefix  string
 }
 
+// NewTextHandler creates a new TextHandler with the given io.Writer and Options.
+// The Options should not be changed after first use.
 func NewTextHandler(w io.Writer, opts *Options) *TextHandler {
 	return &TextHandler{
 		Options: opts,
@@ -46,18 +44,22 @@ func (h *TextHandler) clone() *TextHandler {
 	}
 }
 
-func (h *TextHandler) WithAttrs(as []slog.Attr) Handler {
-	if len(as) == 0 {
+// WithAttrs returns a new TextHandler whose attributes consists of h's attributes followed by attrs.
+// If attrs is empty, WithAttrs returns the origin TextHandler.
+func (h *TextHandler) WithAttrs(attrs []slog.Attr) Handler {
+	if len(attrs) == 0 {
 		return h
 	}
 
 	h2 := h.clone()
-	for _, a := range as {
+	for _, a := range attrs {
 		appendTextAttr(&h2.preformatted, a, h.groupPrefix)
 	}
 	return h2
 }
 
+// WithGroup returns a new TextHandler that starts a group with the given name.
+// If name is empty, WithGroup returns the origin TextHandler.
 func (h *TextHandler) WithGroup(name string) Handler {
 	h2 := h.clone()
 	if len(h2.groupPrefix) == 0 {
@@ -68,6 +70,12 @@ func (h *TextHandler) WithGroup(name string) Handler {
 	return h2
 }
 
+// Handle formats slog.Record as a single line of space-separated key=value items.
+//
+// The time is output in [time.RFC3339] format.
+//
+// Keys and values are quoted with [strconv.Quote] if they contain Unicode space
+// characters, non-printing characters, '"' or '='.
 func (h *TextHandler) Handle(_ context.Context, r slog.Record) error {
 	buf := newBuffer()
 	defer freeBuffer(buf)

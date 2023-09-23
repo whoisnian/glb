@@ -21,6 +21,8 @@ type NanoHandler struct {
 	preformatted []byte
 }
 
+// NewNanoHandler creates a new NanoHandler with the given io.Writer and Options.
+// The Options should not be changed after first use.
 func NewNanoHandler(w io.Writer, opts *Options) *NanoHandler {
 	return &NanoHandler{
 		Options: opts,
@@ -38,22 +40,30 @@ func (h *NanoHandler) clone() *NanoHandler {
 	}
 }
 
-func (h *NanoHandler) WithAttrs(as []slog.Attr) Handler {
-	if len(as) == 0 {
+// WithAttrs returns a new NanoHandler whose attributes consists of h's attributes followed by attrs.
+// If attrs is empty, WithAttrs returns the origin NanoHandler.
+func (h *NanoHandler) WithAttrs(attrs []slog.Attr) Handler {
+	if len(attrs) == 0 {
 		return h
 	}
 
 	h2 := h.clone()
-	for _, a := range as {
+	for _, a := range attrs {
 		appendNanoValue(&h2.preformatted, a.Value)
 	}
 	return h2
 }
 
+// WithGroup returns the origin NanoHandler because NanoHandler always ignores attribute keys.
 func (h *NanoHandler) WithGroup(name string) Handler {
 	return h
 }
 
+// Handle formats slog.Record as a sequence of value strings without attribute keys.
+//
+// The time is output in [time.DateTime] format.
+//
+// If the Record's message is empty, the message is omitted.
 func (h *NanoHandler) Handle(_ context.Context, r slog.Record) error {
 	buf := newBuffer()
 	defer freeBuffer(buf)
