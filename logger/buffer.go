@@ -4,9 +4,14 @@ import (
 	"sync"
 )
 
+const (
+	initBufferSize = 1 << 10
+	maxBufferSize  = 16 << 10
+)
+
 var bufferPool = sync.Pool{
 	New: func() any {
-		buf := make([]byte, 0, 1024)
+		buf := make([]byte, 0, initBufferSize)
 		return &buf
 	},
 }
@@ -16,7 +21,6 @@ func newBuffer() *[]byte {
 }
 
 func freeBuffer(buf *[]byte) {
-	const maxBufferSize = 16 << 10
 	if cap(*buf) <= maxBufferSize {
 		*buf = (*buf)[:0]
 		bufferPool.Put(buf)
@@ -35,9 +39,9 @@ const smallsString = "00010203040506070809" +
 	"90919293949596979899"
 
 // 0 <= i <= 9
-// func appendIntWidth1(buf *[]byte, i int) {
-// 	*buf = append(*buf, smallsString[i*2+1])
-// }
+func appendIntWidth1(buf *[]byte, i int) {
+	*buf = append(*buf, smallsString[i*2+1])
+}
 
 // 00 <= i <= 99
 func appendIntWidth2(buf *[]byte, i int) {
@@ -45,12 +49,12 @@ func appendIntWidth2(buf *[]byte, i int) {
 }
 
 // 000 <= i <= 999
-// func appendIntWidth3(buf *[]byte, i int) {
-// 	l := i / 100
-// 	i -= l * 100
-// 	*buf = append(*buf, smallsString[l*2+1])
-// 	*buf = append(*buf, smallsString[i*2:i*2+2]...)
-// }
+func appendIntWidth3(buf *[]byte, i int) {
+	l := i / 100
+	i -= l * 100
+	*buf = append(*buf, smallsString[l*2+1])
+	*buf = append(*buf, smallsString[i*2:i*2+2]...)
+}
 
 // 0000 <= i <= 9999
 func appendIntWidth4(buf *[]byte, i int) {
