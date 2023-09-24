@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 	"unicode"
+	"unicode/utf8"
 )
 
 // TextHandler formats slog.Record as a sequence of key=value pairs separated by spaces and followed by a newline.
@@ -123,23 +124,23 @@ func (h *TextHandler) Handle(_ context.Context, r slog.Record) error {
 func appendTextAttr(buf *[]byte, a slog.Attr, prefix string) {
 	if a.Value.Kind() == slog.KindGroup {
 		for _, aa := range a.Value.Group() {
-			appendTextAttr(buf, aa, prefix+"."+a.Key)
+			if len(prefix) > 0 {
+				appendTextAttr(buf, aa, prefix+"."+a.Key)
+			} else {
+				appendTextAttr(buf, aa, a.Key)
+			}
 		}
 		return
 	}
 
 	*buf = append(*buf, ' ')
-	appendTextKey(buf, a.Key, prefix)
-	appendTextValue(buf, a.Value)
-}
-
-func appendTextKey(buf *[]byte, key string, prefix string) {
 	if len(prefix) > 0 {
-		appendTextString(buf, prefix+"."+key)
+		appendTextString(buf, prefix+"."+a.Key)
 	} else {
-		appendTextString(buf, key)
+		appendTextString(buf, a.Key)
 	}
 	*buf = append(*buf, '=')
+	appendTextValue(buf, a.Value)
 }
 
 func appendTextValue(buf *[]byte, v slog.Value) {
@@ -196,11 +197,22 @@ func appendTextString(buf *[]byte, str string) {
 		return
 	}
 
-	for _, r := range str {
-		if unicode.IsSpace(r) || r == '"' || r == '=' || !unicode.IsPrint(r) {
+	for i := 0; i < len(str); {
+		b := str[i]
+		if b < utf8.RuneSelf {
+			if b != '\\' && (b == ' ' || b == '=' || !safeSet[b]) {
+				*buf = strconv.AppendQuote(*buf, str)
+				return
+			}
+			i++
+			continue
+		}
+		r, size := utf8.DecodeRuneInString(str[i:])
+		if r == utf8.RuneError || unicode.IsSpace(r) || !unicode.IsPrint(r) {
 			*buf = strconv.AppendQuote(*buf, str)
 			return
 		}
+		i += size
 	}
 	*buf = append(*buf, str...)
 }

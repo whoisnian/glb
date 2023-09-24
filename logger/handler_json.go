@@ -185,7 +185,7 @@ func appendJsonValue(buf *[]byte, v slog.Value) {
 	case slog.KindAny, slog.KindLogValuer:
 		va := v.Any()
 		if _, ok := va.(json.Marshaler); ok {
-			appendJsonMarshal(buf, v)
+			appendJsonMarshal(buf, va)
 		} else if vv, ok := va.(error); ok {
 			*buf = append(*buf, '"')
 			appendJsonString(buf, vv.Error())
@@ -208,7 +208,11 @@ func appendJsonMarshal(buf *[]byte, v any) {
 	enc.SetEscapeHTML(false)
 	if err := enc.Encode(v); err != nil {
 		*buf = append(*buf, '"')
-		appendJsonString(buf, err.Error())
+		if u, ok := err.(interface{ Unwrap() error }); ok {
+			appendJsonString(buf, u.Unwrap().Error())
+		} else {
+			appendJsonString(buf, err.Error())
+		}
 		*buf = append(*buf, '"')
 		return
 	}
