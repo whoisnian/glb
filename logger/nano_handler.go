@@ -103,6 +103,7 @@ func (h *NanoHandler) Handle(_ context.Context, r slog.Record) error {
 }
 
 func appendNanoValue(buf *[]byte, v slog.Value) {
+	v = v.Resolve()
 	if v.Kind() == slog.KindGroup {
 		for _, a := range v.Group() {
 			appendNanoValue(buf, a.Value)

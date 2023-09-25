@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"log/slog"
 	"runtime"
@@ -147,6 +146,7 @@ func appendJsonAttr(buf *[]byte, a slog.Attr, addSep bool) {
 	}
 	appendJsonString(buf, a.Key)
 
+	a.Value = a.Value.Resolve()
 	if a.Value.Kind() == slog.KindGroup {
 		*buf = append(*buf, '"', ':', '{')
 		addSep = false
@@ -190,14 +190,8 @@ func appendJsonValue(buf *[]byte, v slog.Value) {
 			*buf = append(*buf, '"')
 			appendJsonString(buf, vv.Error())
 			*buf = append(*buf, '"')
-		} else if vv, ok := va.([]byte); ok {
-			*buf = append(*buf, '"')
-			appendJsonString(buf, string(vv))
-			*buf = append(*buf, '"')
 		} else {
-			*buf = append(*buf, '"')
-			appendJsonString(buf, fmt.Sprint(va))
-			*buf = append(*buf, '"')
+			appendJsonMarshal(buf, va)
 		}
 	}
 }

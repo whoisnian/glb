@@ -122,6 +122,7 @@ func (h *TextHandler) Handle(_ context.Context, r slog.Record) error {
 }
 
 func appendTextAttr(buf *[]byte, a slog.Attr, prefix string) {
+	a.Value = a.Value.Resolve()
 	if a.Value.Kind() == slog.KindGroup {
 		for _, aa := range a.Value.Group() {
 			if len(prefix) > 0 {
