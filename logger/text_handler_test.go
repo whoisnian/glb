@@ -9,7 +9,6 @@ import (
 	"log/slog"
 	"regexp"
 	"runtime"
-	"strings"
 	"testing"
 	"time"
 )
@@ -134,12 +133,12 @@ func TestAppendTextAttr(t *testing.T) {
 
 func TestAppendTextSource(t *testing.T) {
 	var tests = []struct {
-		depth  int
-		prefix string
+		depth int
+		re    string
 	}{
-		{0, "runtime/extern.go:"},
-		{1, "logger/handler_text_test.go:"},
-		{2, "testing/testing.go:"},
+		{0, `^runtime/extern.go:\d+$`},
+		{1, `^logger/text_handler_test.go:\d+$`},
+		{2, `^testing/testing.go:\d+$`},
 	}
 	buf := make([]byte, 64)
 	for _, test := range tests {
@@ -154,8 +153,8 @@ func TestAppendTextSource(t *testing.T) {
 		appendTextSource(&buf, pc)
 
 		got := string(buf)
-		if !strings.HasPrefix(got, test.prefix) || !regexp.MustCompile(`\d+`).MatchString(got[len(test.prefix):]) {
-			t.Fatalf("appendTextSource(%d) = %s, want %sxxx", test.depth, got, test.prefix)
+		if !regexp.MustCompile(test.re).MatchString(got) {
+			t.Fatalf("appendTextSource(%d) = %s, want matched by %s", test.depth, got, test.re)
 		}
 	}
 }

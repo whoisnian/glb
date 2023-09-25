@@ -9,7 +9,6 @@ import (
 	"log/slog"
 	"regexp"
 	"runtime"
-	"strings"
 	"testing"
 	"time"
 )
@@ -150,12 +149,12 @@ func TestAppendJsonAttr(t *testing.T) {
 
 func TestAppendJsonSource(t *testing.T) {
 	var tests = []struct {
-		depth  int
-		prefix string
+		depth int
+		re    string
 	}{
-		{0, `"file":"runtime/extern.go","line":`},
-		{1, `"file":"logger/handler_json_test.go","line":`},
-		{2, `"file":"testing/testing.go","line":`},
+		{0, `^"file":"runtime/extern.go","line":\d+$`},
+		{1, `^"file":"logger/json_handler_test.go","line":\d+$`},
+		{2, `^"file":"testing/testing.go","line":\d+$`},
 	}
 	buf := make([]byte, 64)
 	for _, test := range tests {
@@ -170,8 +169,8 @@ func TestAppendJsonSource(t *testing.T) {
 		appendJsonSource(&buf, pc)
 
 		got := string(buf)
-		if !strings.HasPrefix(got, test.prefix) || !regexp.MustCompile(`\d+`).MatchString(got[len(test.prefix):]) {
-			t.Fatalf("appendJsonSource(%d) = %s, want %sxxx", test.depth, got, test.prefix)
+		if !regexp.MustCompile(test.re).MatchString(got) {
+			t.Fatalf("appendJsonSource(%d) = %s, want matched by %s", test.depth, got, test.re)
 		}
 	}
 }
