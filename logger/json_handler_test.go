@@ -9,6 +9,8 @@ import (
 	"log/slog"
 	"regexp"
 	"runtime"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 )
@@ -88,6 +90,30 @@ func TestJsonHandlerWithGroup(t *testing.T) {
 }
 
 func TestJsonHandler(t *testing.T) {
+	var pcs [1]uintptr
+	runtime.Callers(1, pcs[:])
+	f, _ := runtime.CallersFrames(pcs[:]).Next()
+	line := strconv.Itoa(f.Line)
+	for _, test := range handlerTests {
+		r := slog.NewRecord(testTime, LevelInfo, "message", pcs[0])
+		r.AddAttrs(test.attrs...)
+		var buf bytes.Buffer
+		var h Handler = NewJsonHandler(&buf, NewOptions(LevelInfo, false, test.addSource))
+		t.Run(test.name, func(t *testing.T) {
+			if test.preAttrs != nil {
+				h = h.WithAttrs(test.preAttrs)
+			}
+			buf.Reset()
+			if err := h.Handle(context.Background(), r); err != nil {
+				t.Fatalf("Handle() error: %v", err)
+			}
+			got := strings.TrimSuffix(buf.String(), "\n")
+			want := strings.ReplaceAll(test.wantJson, "$LINE", line)
+			if got != want {
+				t.Errorf("\ngot  %s\nwant %s\n", got, want)
+			}
+		})
+	}
 }
 
 // as json.Marshaler for TestAppendJsonAttr

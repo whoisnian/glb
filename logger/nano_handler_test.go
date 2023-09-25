@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"regexp"
 	"runtime"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 )
@@ -76,6 +78,30 @@ func TestNanoHandlerWithGroup(t *testing.T) {
 }
 
 func TestNanoHandler(t *testing.T) {
+	var pcs [1]uintptr
+	runtime.Callers(1, pcs[:])
+	f, _ := runtime.CallersFrames(pcs[:]).Next()
+	line := strconv.Itoa(f.Line)
+	for _, test := range handlerTests {
+		r := slog.NewRecord(testTime, LevelInfo, "message", pcs[0])
+		r.AddAttrs(test.attrs...)
+		var buf bytes.Buffer
+		var h Handler = NewNanoHandler(&buf, NewOptions(LevelInfo, false, test.addSource))
+		t.Run(test.name, func(t *testing.T) {
+			if test.preAttrs != nil {
+				h = h.WithAttrs(test.preAttrs)
+			}
+			buf.Reset()
+			if err := h.Handle(context.Background(), r); err != nil {
+				t.Fatalf("Handle() error: %v", err)
+			}
+			got := strings.TrimSuffix(buf.String(), "\n")
+			want := strings.ReplaceAll(test.wantNano, "$LINE", line)
+			if got != want {
+				t.Errorf("\ngot  %s\nwant %s\n", got, want)
+			}
+		})
+	}
 }
 
 func TestAppendNanoValue(t *testing.T) {
