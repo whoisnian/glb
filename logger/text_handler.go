@@ -125,10 +125,12 @@ func appendTextAttr(buf *[]byte, a slog.Attr, prefix string) {
 	a.Value = a.Value.Resolve()
 	if a.Value.Kind() == slog.KindGroup {
 		for _, aa := range a.Value.Group() {
-			if len(prefix) > 0 {
-				appendTextAttr(buf, aa, prefix+"."+a.Key)
-			} else {
+			if len(a.Key) == 0 {
+				appendTextAttr(buf, aa, prefix)
+			} else if len(prefix) == 0 {
 				appendTextAttr(buf, aa, a.Key)
+			} else {
+				appendTextAttr(buf, aa, prefix+"."+a.Key)
 			}
 		}
 		return

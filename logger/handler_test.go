@@ -187,6 +187,21 @@ var (
 			wantText: "time=2000-01-02T03:04:05Z level=INFO msg=message a=1 b=2 c=3 d=4",
 			wantJson: `{"time":"2000-01-02T03:04:05.000000006Z","level":"INFO","msg":"message","a":1,"b":2,"c":3,"d":4}`,
 		}, {
+			name: "nested inline group",
+			attrs: []slog.Attr{
+				slog.Int("a", 1),
+				slog.Group("",
+					slog.Int("b", 2),
+					slog.Group("",
+						slog.Int("c", 3),
+						slog.Group(""),
+						slog.Group("j"))),
+				slog.Int("d", 4),
+			},
+			wantNano: "2000-01-02 03:04:05 [I] message 1 2 3 4",
+			wantText: "time=2000-01-02T03:04:05Z level=INFO msg=message a=1 b=2 c=3 d=4",
+			wantJson: `{"time":"2000-01-02T03:04:05.000000006Z","level":"INFO","msg":"message","a":1,"b":2,"c":3,"d":4}`,
+		}, {
 			name:      "Source",
 			addSource: true,
 			wantNano:  "2000-01-02 03:04:05 [I] logger/nano_handler_test.go:$LINE message",

@@ -140,24 +140,29 @@ func (h *JsonHandler) Handle(_ context.Context, r slog.Record) error {
 
 func appendJsonAttr(buf *[]byte, a slog.Attr, addSep bool) {
 	if addSep {
-		*buf = append(*buf, ',', '"')
-	} else {
-		*buf = append(*buf, '"')
+		*buf = append(*buf, ',')
+		addSep = false
 	}
-	appendJsonString(buf, a.Key)
 
 	a.Value = a.Value.Resolve()
 	if a.Value.Kind() == slog.KindGroup {
-		*buf = append(*buf, '"', ':', '{')
-		addSep = false
+		if len(a.Key) > 0 {
+			*buf = append(*buf, '"')
+			appendJsonString(buf, a.Key)
+			*buf = append(*buf, '"', ':', '{')
+		}
 		for _, aa := range a.Value.Group() {
 			appendJsonAttr(buf, aa, addSep)
 			addSep = true
 		}
-		*buf = append(*buf, '}')
+		if len(a.Key) > 0 {
+			*buf = append(*buf, '}')
+		}
 		return
 	}
 
+	*buf = append(*buf, '"')
+	appendJsonString(buf, a.Key)
 	*buf = append(*buf, '"', ':')
 	appendJsonValue(buf, a.Value)
 }
