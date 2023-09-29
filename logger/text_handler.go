@@ -13,6 +13,8 @@ import (
 	"time"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/whoisnian/glb/util/strutil"
 )
 
 // TextHandler formats slog.Record as a sequence of key=value pairs separated by spaces and followed by a newline.
@@ -45,6 +47,24 @@ func (h *TextHandler) clone() *TextHandler {
 	}
 }
 
+var prefixPool = sync.Pool{
+	New: func() any {
+		prefix := make([]byte, 0, 32)
+		return &prefix
+	},
+}
+
+func (h *TextHandler) prefix() *[]byte {
+	prefix := prefixPool.Get().(*[]byte)
+	*prefix = append(*prefix, h.groupPrefix...)
+	return prefix
+}
+
+func (h *TextHandler) freePrefix(prefix *[]byte) {
+	*prefix = (*prefix)[:0]
+	prefixPool.Put(prefix)
+}
+
 // WithAttrs returns a new TextHandler whose attributes consists of h's attributes followed by attrs.
 // If attrs is empty, WithAttrs returns the origin TextHandler.
 func (h *TextHandler) WithAttrs(attrs []slog.Attr) Handler {
@@ -54,7 +74,9 @@ func (h *TextHandler) WithAttrs(attrs []slog.Attr) Handler {
 
 	h2 := h.clone()
 	for _, a := range attrs {
-		appendTextAttr(&h2.preformatted, a, h.groupPrefix)
+		prefix := h2.prefix()
+		appendTextAttr(&h2.preformatted, a, prefix)
+		h2.freePrefix(prefix)
 	}
 	return h2
 }
@@ -109,7 +131,9 @@ func (h *TextHandler) Handle(_ context.Context, r slog.Record) error {
 
 	if r.NumAttrs() > 0 {
 		r.Attrs(func(a slog.Attr) bool {
-			appendTextAttr(buf, a, h.groupPrefix)
+			prefix := h.prefix()
+			appendTextAttr(buf, a, prefix)
+			h.freePrefix(prefix)
 			return true
 		})
 	}
@@ -121,24 +145,28 @@ func (h *TextHandler) Handle(_ context.Context, r slog.Record) error {
 	return err
 }
 
-func appendTextAttr(buf *[]byte, a slog.Attr, prefix string) {
+func appendTextAttr(buf *[]byte, a slog.Attr, prefix *[]byte) {
 	a.Value = a.Value.Resolve()
 	if a.Value.Kind() == slog.KindGroup {
+		ori := len(*prefix)
 		for _, aa := range a.Value.Group() {
-			if len(a.Key) == 0 {
-				appendTextAttr(buf, aa, prefix)
-			} else if len(prefix) == 0 {
-				appendTextAttr(buf, aa, a.Key)
-			} else {
-				appendTextAttr(buf, aa, prefix+"."+a.Key)
+			*prefix = (*prefix)[:ori]
+			if ori > 0 && len(a.Key) > 0 {
+				*prefix = append(*prefix, '.')
 			}
+			if len(a.Key) > 0 {
+				*prefix = append(*prefix, a.Key...)
+			}
+			appendTextAttr(buf, aa, prefix)
 		}
 		return
 	}
 
 	*buf = append(*buf, ' ')
-	if len(prefix) > 0 {
-		appendTextString(buf, prefix+"."+a.Key)
+	if len(*prefix) > 0 {
+		*prefix = append(*prefix, '.')
+		*prefix = append(*prefix, a.Key...)
+		appendTextString(buf, strutil.UnsafeBytesToString(*prefix))
 	} else {
 		appendTextString(buf, a.Key)
 	}

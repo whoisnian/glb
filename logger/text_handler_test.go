@@ -148,7 +148,7 @@ func TestAppendTextAttr(t *testing.T) {
 	buf := make([]byte, 32)
 	for _, test := range tests {
 		buf = buf[:0]
-		appendTextAttr(&buf, test.input, "")
+		appendTextAttr(&buf, test.input, &[]byte{})
 
 		got := string(buf)
 		if got != test.want {
