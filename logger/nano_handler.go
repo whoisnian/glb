@@ -14,50 +14,56 @@ import (
 
 // NanoHandler formats slog.Record as a sequence of value strings without attribute keys to minimize log length.
 type NanoHandler struct {
-	opts         *Options
-	preformatted []byte
-
+	*Options
 	outMu *sync.Mutex
 	out   io.Writer
+
+	preformatted []byte
 }
 
+// NewNanoHandler creates a new NanoHandler with the given io.Writer and Options.
+// The Options should not be changed after first use.
 func NewNanoHandler(w io.Writer, opts *Options) *NanoHandler {
 	return &NanoHandler{
-		opts:  opts,
-		outMu: &sync.Mutex{},
-		out:   w,
+		Options: opts,
+		outMu:   &sync.Mutex{},
+		out:     w,
 	}
 }
 
 func (h *NanoHandler) clone() *NanoHandler {
 	return &NanoHandler{
-		opts:         h.opts,
-		preformatted: slices.Clip(h.preformatted),
+		Options:      h.Options,
 		outMu:        h.outMu,
 		out:          h.out,
+		preformatted: slices.Clip(h.preformatted),
 	}
 }
 
-func (h *NanoHandler) Enabled(_ context.Context, l slog.Level) bool {
-	return l >= h.opts.Level
-}
-
-func (h *NanoHandler) WithAttrs(as []slog.Attr) slog.Handler {
-	if len(as) == 0 {
+// WithAttrs returns a new NanoHandler whose attributes consists of h's attributes followed by attrs.
+// If attrs is empty, WithAttrs returns the origin NanoHandler.
+func (h *NanoHandler) WithAttrs(attrs []slog.Attr) Handler {
+	if len(attrs) == 0 {
 		return h
 	}
 
 	h2 := h.clone()
-	for _, a := range as {
+	for _, a := range attrs {
 		appendNanoValue(&h2.preformatted, a.Value)
 	}
 	return h2
 }
 
-func (h *NanoHandler) WithGroup(name string) slog.Handler {
+// WithGroup returns the origin NanoHandler because NanoHandler always ignores attribute keys.
+func (h *NanoHandler) WithGroup(name string) Handler {
 	return h
 }
 
+// Handle formats slog.Record as a sequence of value strings without attribute keys.
+//
+// The time is output in [time.DateTime] format.
+//
+// If the Record's message is empty, the message is omitted.
 func (h *NanoHandler) Handle(_ context.Context, r slog.Record) error {
 	buf := newBuffer()
 	defer freeBuffer(buf)
@@ -66,15 +72,17 @@ func (h *NanoHandler) Handle(_ context.Context, r slog.Record) error {
 	appendDateTime(buf, r.Time)
 	// level
 	*buf = append(*buf, ' ')
-	appendShortLevel(buf, r.Level, h.opts.Colorful)
+	appendShortLevel(buf, r.Level, h.Options.colorful)
 	// source
-	if h.opts.AddSource {
+	if h.Options.addSource {
 		*buf = append(*buf, ' ')
 		appendNanoSource(buf, r.PC)
 	}
 	// msg
-	*buf = append(*buf, ' ')
-	*buf = append(*buf, r.Message...)
+	if len(r.Message) > 0 {
+		*buf = append(*buf, ' ')
+		*buf = append(*buf, r.Message...)
+	}
 
 	if len(h.preformatted) > 0 {
 		*buf = append(*buf, h.preformatted...)
@@ -95,6 +103,7 @@ func (h *NanoHandler) Handle(_ context.Context, r slog.Record) error {
 }
 
 func appendNanoValue(buf *[]byte, v slog.Value) {
+	v = v.Resolve()
 	if v.Kind() == slog.KindGroup {
 		for _, a := range v.Group() {
 			appendNanoValue(buf, a.Value)

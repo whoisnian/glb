@@ -4,9 +4,14 @@ import (
 	"sync"
 )
 
+const (
+	initBufferSize = 1 << 10
+	maxBufferSize  = 16 << 10
+)
+
 var bufferPool = sync.Pool{
 	New: func() any {
-		buf := make([]byte, 0, 1024)
+		buf := make([]byte, 0, initBufferSize)
 		return &buf
 	},
 }
@@ -16,7 +21,6 @@ func newBuffer() *[]byte {
 }
 
 func freeBuffer(buf *[]byte) {
-	const maxBufferSize = 16 << 10
 	if cap(*buf) <= maxBufferSize {
 		*buf = (*buf)[:0]
 		bufferPool.Put(buf)

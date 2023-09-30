@@ -1,14 +1,9 @@
-// Copyright 2022 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-
 package logger
 
 import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"log/slog"
 	"runtime"
@@ -21,53 +16,55 @@ import (
 
 // JsonHandler formats slog.Record as line-delimited JSON objects.
 type JsonHandler struct {
-	opts         *Options
+	*Options
+	outMu *sync.Mutex
+	out   io.Writer
+
 	preformatted []byte
 	nOpenGroups  int
 	addSep       bool
-
-	outMu *sync.Mutex
-	out   io.Writer
 }
 
+// NewJsonHandler creates a new JsonHandler with the given io.Writer and Options.
+// The Options should not be changed after first use.
 func NewJsonHandler(w io.Writer, opts *Options) *JsonHandler {
 	return &JsonHandler{
-		opts:   opts,
-		addSep: true,
-		outMu:  &sync.Mutex{},
-		out:    w,
+		Options: opts,
+		outMu:   &sync.Mutex{},
+		out:     w,
+		addSep:  true,
 	}
 }
 
 func (h *JsonHandler) clone() *JsonHandler {
 	return &JsonHandler{
-		opts:         h.opts,
+		Options:      h.Options,
+		outMu:        h.outMu,
+		out:          h.out,
 		preformatted: slices.Clip(h.preformatted),
 		nOpenGroups:  h.nOpenGroups,
 		addSep:       h.addSep,
-		outMu:        h.outMu,
-		out:          h.out,
 	}
 }
 
-func (h *JsonHandler) Enabled(_ context.Context, l slog.Level) bool {
-	return l >= h.opts.Level
-}
-
-func (h *JsonHandler) WithAttrs(as []slog.Attr) slog.Handler {
-	if len(as) == 0 {
+// WithAttrs returns a new JsonHandler whose attributes consists of h's attributes followed by attrs.
+// If attrs is empty, WithAttrs returns the origin JsonHandler.
+func (h *JsonHandler) WithAttrs(attrs []slog.Attr) Handler {
+	if len(attrs) == 0 {
 		return h
 	}
 
 	h2 := h.clone()
-	for _, a := range as {
+	for _, a := range attrs {
 		appendJsonAttr(&h2.preformatted, a, h.addSep)
 		h.addSep = true
 	}
 	return h2
 }
 
-func (h *JsonHandler) WithGroup(name string) slog.Handler {
+// WithGroup returns a new JsonHandler that starts a group with the given name.
+// If name is empty, WithGroup returns the origin JsonHandler.
+func (h *JsonHandler) WithGroup(name string) Handler {
 	h2 := h.clone()
 	if h2.addSep {
 		h2.preformatted = append(h2.preformatted, ',', '"')
@@ -81,6 +78,12 @@ func (h *JsonHandler) WithGroup(name string) slog.Handler {
 	return h2
 }
 
+// Handle formats slog.Record as a JSON object on a single line.
+//
+// The time is output in [time.RFC3339Nano] format.
+//
+// An encoding failure does not cause Handle to return an error.
+// Instead, the error message is formatted as a string.
 func (h *JsonHandler) Handle(_ context.Context, r slog.Record) error {
 	buf := newBuffer()
 	defer freeBuffer(buf)
@@ -95,10 +98,10 @@ func (h *JsonHandler) Handle(_ context.Context, r slog.Record) error {
 	*buf = append(*buf, '"', ',', '"')
 	*buf = append(*buf, slog.LevelKey...)
 	*buf = append(*buf, '"', ':', '"')
-	appendFullLevel(buf, r.Level, h.opts.Colorful)
+	appendFullLevel(buf, r.Level, h.Options.colorful)
 	*buf = append(*buf, '"')
 	// source
-	if h.opts.AddSource {
+	if h.Options.addSource {
 		*buf = append(*buf, ',', '"')
 		*buf = append(*buf, slog.SourceKey...)
 		*buf = append(*buf, '"', ':', '{')
@@ -137,23 +140,29 @@ func (h *JsonHandler) Handle(_ context.Context, r slog.Record) error {
 
 func appendJsonAttr(buf *[]byte, a slog.Attr, addSep bool) {
 	if addSep {
-		*buf = append(*buf, ',', '"')
-	} else {
-		*buf = append(*buf, '"')
-	}
-	appendJsonString(buf, a.Key)
-
-	if a.Value.Kind() == slog.KindGroup {
-		*buf = append(*buf, '"', ':', '{')
+		*buf = append(*buf, ',')
 		addSep = false
+	}
+
+	a.Value = a.Value.Resolve()
+	if a.Value.Kind() == slog.KindGroup {
+		if len(a.Key) > 0 {
+			*buf = append(*buf, '"')
+			appendJsonString(buf, a.Key)
+			*buf = append(*buf, '"', ':', '{')
+		}
 		for _, aa := range a.Value.Group() {
 			appendJsonAttr(buf, aa, addSep)
 			addSep = true
 		}
-		*buf = append(*buf, '}')
+		if len(a.Key) > 0 {
+			*buf = append(*buf, '}')
+		}
 		return
 	}
 
+	*buf = append(*buf, '"')
+	appendJsonString(buf, a.Key)
 	*buf = append(*buf, '"', ':')
 	appendJsonValue(buf, a.Value)
 }
@@ -181,19 +190,13 @@ func appendJsonValue(buf *[]byte, v slog.Value) {
 	case slog.KindAny, slog.KindLogValuer:
 		va := v.Any()
 		if _, ok := va.(json.Marshaler); ok {
-			appendJsonMarshal(buf, v)
+			appendJsonMarshal(buf, va)
 		} else if vv, ok := va.(error); ok {
 			*buf = append(*buf, '"')
 			appendJsonString(buf, vv.Error())
 			*buf = append(*buf, '"')
-		} else if vv, ok := va.([]byte); ok {
-			*buf = append(*buf, '"')
-			appendJsonString(buf, string(vv))
-			*buf = append(*buf, '"')
 		} else {
-			*buf = append(*buf, '"')
-			appendJsonString(buf, fmt.Sprint(va))
-			*buf = append(*buf, '"')
+			appendJsonMarshal(buf, va)
 		}
 	}
 }
@@ -204,7 +207,11 @@ func appendJsonMarshal(buf *[]byte, v any) {
 	enc.SetEscapeHTML(false)
 	if err := enc.Encode(v); err != nil {
 		*buf = append(*buf, '"')
-		appendJsonString(buf, err.Error())
+		if u, ok := err.(interface{ Unwrap() error }); ok {
+			appendJsonString(buf, u.Unwrap().Error())
+		} else {
+			appendJsonString(buf, err.Error())
+		}
 		*buf = append(*buf, '"')
 		return
 	}

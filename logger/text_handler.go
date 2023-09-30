@@ -1,7 +1,3 @@
-// Copyright 2022 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-
 package logger
 
 import (
@@ -16,53 +12,78 @@ import (
 	"sync"
 	"time"
 	"unicode"
+	"unicode/utf8"
+
+	"github.com/whoisnian/glb/util/strutil"
 )
 
 // TextHandler formats slog.Record as a sequence of key=value pairs separated by spaces and followed by a newline.
 type TextHandler struct {
-	opts         *Options
-	preformatted []byte
-	groupPrefix  string
-
+	*Options
 	outMu *sync.Mutex
 	out   io.Writer
+
+	preformatted []byte
+	groupPrefix  string
 }
 
+// NewTextHandler creates a new TextHandler with the given io.Writer and Options.
+// The Options should not be changed after first use.
 func NewTextHandler(w io.Writer, opts *Options) *TextHandler {
 	return &TextHandler{
-		opts:  opts,
-		outMu: &sync.Mutex{},
-		out:   w,
+		Options: opts,
+		outMu:   &sync.Mutex{},
+		out:     w,
 	}
 }
 
 func (h *TextHandler) clone() *TextHandler {
 	return &TextHandler{
-		opts:         h.opts,
-		preformatted: slices.Clip(h.preformatted),
-		groupPrefix:  h.groupPrefix,
+		Options:      h.Options,
 		outMu:        h.outMu,
 		out:          h.out,
+		preformatted: slices.Clip(h.preformatted),
+		groupPrefix:  h.groupPrefix,
 	}
 }
 
-func (h *TextHandler) Enabled(_ context.Context, l slog.Level) bool {
-	return l >= h.opts.Level
+var prefixPool = sync.Pool{
+	New: func() any {
+		prefix := make([]byte, 0, 32)
+		return &prefix
+	},
 }
 
-func (h *TextHandler) WithAttrs(as []slog.Attr) slog.Handler {
-	if len(as) == 0 {
+func (h *TextHandler) prefix() *[]byte {
+	prefix := prefixPool.Get().(*[]byte)
+	*prefix = append(*prefix, h.groupPrefix...)
+	return prefix
+}
+
+func (h *TextHandler) freePrefix(prefix *[]byte) {
+	*prefix = (*prefix)[:0]
+	prefixPool.Put(prefix)
+}
+
+// WithAttrs returns a new TextHandler whose attributes consists of h's attributes followed by attrs.
+// If attrs is empty, WithAttrs returns the origin TextHandler.
+func (h *TextHandler) WithAttrs(attrs []slog.Attr) Handler {
+	if len(attrs) == 0 {
 		return h
 	}
 
 	h2 := h.clone()
-	for _, a := range as {
-		appendTextAttr(&h2.preformatted, a, h.groupPrefix)
+	for _, a := range attrs {
+		prefix := h2.prefix()
+		appendTextAttr(&h2.preformatted, a, prefix)
+		h2.freePrefix(prefix)
 	}
 	return h2
 }
 
-func (h *TextHandler) WithGroup(name string) slog.Handler {
+// WithGroup returns a new TextHandler that starts a group with the given name.
+// If name is empty, WithGroup returns the origin TextHandler.
+func (h *TextHandler) WithGroup(name string) Handler {
 	h2 := h.clone()
 	if len(h2.groupPrefix) == 0 {
 		h2.groupPrefix = name
@@ -72,6 +93,12 @@ func (h *TextHandler) WithGroup(name string) slog.Handler {
 	return h2
 }
 
+// Handle formats slog.Record as a single line of space-separated key=value items.
+//
+// The time is output in [time.RFC3339] format.
+//
+// Keys and values are quoted with [strconv.Quote] if they contain Unicode space
+// characters, non-printing characters, '"' or '='.
 func (h *TextHandler) Handle(_ context.Context, r slog.Record) error {
 	buf := newBuffer()
 	defer freeBuffer(buf)
@@ -84,9 +111,9 @@ func (h *TextHandler) Handle(_ context.Context, r slog.Record) error {
 	*buf = append(*buf, ' ')
 	*buf = append(*buf, slog.LevelKey...)
 	*buf = append(*buf, '=')
-	appendFullLevel(buf, r.Level, h.opts.Colorful)
+	appendFullLevel(buf, r.Level, h.Options.colorful)
 	// source
-	if h.opts.AddSource {
+	if h.Options.addSource {
 		*buf = append(*buf, ' ')
 		*buf = append(*buf, slog.SourceKey...)
 		*buf = append(*buf, '=')
@@ -104,7 +131,9 @@ func (h *TextHandler) Handle(_ context.Context, r slog.Record) error {
 
 	if r.NumAttrs() > 0 {
 		r.Attrs(func(a slog.Attr) bool {
-			appendTextAttr(buf, a, h.groupPrefix)
+			prefix := h.prefix()
+			appendTextAttr(buf, a, prefix)
+			h.freePrefix(prefix)
 			return true
 		})
 	}
@@ -116,26 +145,33 @@ func (h *TextHandler) Handle(_ context.Context, r slog.Record) error {
 	return err
 }
 
-func appendTextAttr(buf *[]byte, a slog.Attr, prefix string) {
+func appendTextAttr(buf *[]byte, a slog.Attr, prefix *[]byte) {
+	a.Value = a.Value.Resolve()
 	if a.Value.Kind() == slog.KindGroup {
+		ori := len(*prefix)
 		for _, aa := range a.Value.Group() {
-			appendTextAttr(buf, aa, prefix+"."+a.Key)
+			*prefix = (*prefix)[:ori]
+			if ori > 0 && len(a.Key) > 0 {
+				*prefix = append(*prefix, '.')
+			}
+			if len(a.Key) > 0 {
+				*prefix = append(*prefix, a.Key...)
+			}
+			appendTextAttr(buf, aa, prefix)
 		}
 		return
 	}
 
 	*buf = append(*buf, ' ')
-	appendTextKey(buf, a.Key, prefix)
-	appendTextValue(buf, a.Value)
-}
-
-func appendTextKey(buf *[]byte, key string, prefix string) {
-	if len(prefix) > 0 {
-		appendTextString(buf, prefix+"."+key)
+	if len(*prefix) > 0 {
+		*prefix = append(*prefix, '.')
+		*prefix = append(*prefix, a.Key...)
+		appendTextString(buf, strutil.UnsafeBytesToString(*prefix))
 	} else {
-		appendTextString(buf, key)
+		appendTextString(buf, a.Key)
 	}
 	*buf = append(*buf, '=')
+	appendTextValue(buf, a.Value)
 }
 
 func appendTextValue(buf *[]byte, v slog.Value) {
@@ -192,11 +228,22 @@ func appendTextString(buf *[]byte, str string) {
 		return
 	}
 
-	for _, r := range str {
-		if unicode.IsSpace(r) || r == '"' || r == '=' || !unicode.IsPrint(r) {
+	for i := 0; i < len(str); {
+		b := str[i]
+		if b < utf8.RuneSelf {
+			if b != '\\' && (b == ' ' || b == '=' || !safeSet[b]) {
+				*buf = strconv.AppendQuote(*buf, str)
+				return
+			}
+			i++
+			continue
+		}
+		r, size := utf8.DecodeRuneInString(str[i:])
+		if r == utf8.RuneError || unicode.IsSpace(r) || !unicode.IsPrint(r) {
 			*buf = strconv.AppendQuote(*buf, str)
 			return
 		}
+		i += size
 	}
 	*buf = append(*buf, str...)
 }
