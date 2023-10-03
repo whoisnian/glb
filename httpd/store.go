@@ -3,6 +3,8 @@ package httpd
 import (
 	"encoding/json"
 	"net/http"
+
+	"github.com/whoisnian/glb/util/strutil"
 )
 
 // Params consists of a pair of key-value slice.
@@ -27,6 +29,8 @@ type Store struct {
 	R *http.Request
 	P *Params
 	I *RouteInfo
+
+	id []byte
 }
 
 type HandlerFunc func(*Store)
@@ -34,6 +38,11 @@ type HandlerFunc func(*Store)
 // CreateHandler converts 'http.HandlerFunc' to 'httpd.HandlerFunc'.
 func CreateHandler(httpHandler http.HandlerFunc) HandlerFunc {
 	return func(store *Store) { httpHandler(store.W, store.R) }
+}
+
+// GetID returns the Store's ID like FVHNU2LS-gjdgxz.
+func (store *Store) GetID() string {
+	return strutil.UnsafeBytesToString(store.id)
 }
 
 // RouteParam returns the value of specified route param, or empty string if param not found.
