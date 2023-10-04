@@ -58,14 +58,14 @@ func (mux *Mux) newStoreWith(prefix []byte) func() any {
 		params := Params{V: make([]string, 0, mux.maxParams)}
 		buf := make([]byte, 9, 32)
 		copy(buf, prefix)
-		return &Store{P: &params, id: buf}
+		return &Store{W: &ResponseWriter{}, P: &params, id: buf}
 	}
 }
 
 // ServeHTTP dispatches the request to the matched handler.
 func (mux *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	store := mux.storePool.Get().(*Store)
-	store.W = w
+	store.W.Origin = w
 	store.R = r
 	store.id = strconv.AppendUint(store.id, atomic.AddUint64(&mux.storeID, 1), 36)
 
@@ -76,7 +76,8 @@ func (mux *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	mux.relayHandler(store)
 
-	store.W = nil
+	store.W.Origin = nil
+	store.W.Status = 0
 	store.R = nil
 	store.I = nil
 	store.P.V = store.P.V[:0]
