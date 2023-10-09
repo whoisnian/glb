@@ -8,9 +8,9 @@
 //	2023/08/16 00:35:15 [E] dial tcp 127.0.0.1:9000: connect: connection refused
 //	2023/08/16 00:35:15 [F] mkdir /root/.config/glb: permission denied
 //
-//	2023/08/16 00:35:15 [I] REQUEST 10.0.3.201 GET /status R5U3KA5C-42
-//	2023/08/16 00:35:15 [I] FETCH Fetch upstream metrics http://127.0.0.1:8080/metrics 3 R5U3KA5C-42
-//	2023/08/16 00:35:15 [I] RESPONSE 200 4 10.0.3.201 GET /status R5U3KA5C-42
+//	2023/08/16 00:35:15 [I] REQ_BEG 10.0.3.201 GET /status R5U3KA5C-42
+//	2023/08/16 00:35:15 [I] TX_SVC1 Fetch upstream metrics http://127.0.0.1:8080/metrics 3 R5U3KA5C-42
+//	2023/08/16 00:35:15 [I] REQ_END 200 4 10.0.3.201 GET /status R5U3KA5C-42
 //
 // TextHandler formats slog.Record as a sequence of key=value pairs separated by spaces and followed by a newline.
 //
@@ -20,9 +20,9 @@
 //	time=2023-08-16T00:35:15+08:00 level=ERROR msg="dial tcp 127.0.0.1:9000: connect: connection refused"
 //	time=2023-08-16T00:35:15+08:00 level=FATAL msg="mkdir /root/.config/glb: permission denied"
 //
-//	time=2023-08-16T00:35:15+08:00 level=INFO msg="" tag=REQUEST ip=10.0.3.201 method=GET path=/status tid=R5U3KA5C-42
-//	time=2023-08-16T00:35:15+08:00 level=INFO msg="Fetch upstream metrics" tag=FETCH url=http://127.0.0.1:8080/metrics duration=3 tid=R5U3KA5C-42
-//	time=2023-08-16T00:35:15+08:00 level=INFO msg="" tag=RESPONSE code=200 duration=4 ip=10.0.3.201 method=GET path=/status tid=R5U3KA5C-42
+//	time=2023-08-16T00:35:15+08:00 level=INFO msg="" tag=REQ_BEG ip=10.0.3.201 method=GET path=/status tid=R5U3KA5C-42
+//	time=2023-08-16T00:35:15+08:00 level=INFO msg="Fetch upstream metrics" tag=TX_SVC1 url=http://127.0.0.1:8080/metrics duration=3 tid=R5U3KA5C-42
+//	time=2023-08-16T00:35:15+08:00 level=INFO msg="" tag=REQ_END code=200 duration=4 ip=10.0.3.201 method=GET path=/status tid=R5U3KA5C-42
 //
 // JsonHandler formats slog.Record as line-delimited JSON objects.
 //
@@ -32,9 +32,9 @@
 //	{"time":"2023-08-16T00:35:15.208873091+08:00","level":"ERROR","msg":"dial tcp 127.0.0.1:9000: connect: connection refused"}
 //	{"time":"2023-08-16T00:35:15.208873091+08:00","level":"FATAL","msg":"mkdir /root/.config/glb: permission denied"}
 //
-//	{"time":"2023-08-16T00:35:15.208873091+08:00","level":"INFO","msg":"","tag":"REQUEST","ip":"10.0.3.201","method":"GET","path":"/status","tid":"R5U3KA5C-42"}
-//	{"time":"2023-08-16T00:35:15.208873091+08:00","level":"INFO","msg":"Fetch upstream metrics","tag":"FETCH","url":"http://127.0.0.1:8080/metrics","duration":3,"tid":"R5U3KA5C-42"}
-//	{"time":"2023-08-16T00:35:15.208873091+08:00","level":"INFO","msg":"","tag":"RESPONSE","code":200,"duration":4,"ip":"10.0.3.201","method":"GET","path":"/status","tid":"R5U3KA5C-42"}
+//	{"time":"2023-08-16T00:35:15.208873091+08:00","level":"INFO","msg":"","tag":"REQ_BEG","ip":"10.0.3.201","method":"GET","path":"/status","tid":"R5U3KA5C-42"}
+//	{"time":"2023-08-16T00:35:15.208873091+08:00","level":"INFO","msg":"Fetch upstream metrics","tag":"TX_SVC1","url":"http://127.0.0.1:8080/metrics","duration":3,"tid":"R5U3KA5C-42"}
+//	{"time":"2023-08-16T00:35:15.208873091+08:00","level":"INFO","msg":"","tag":"REQ_END","code":200,"duration":4,"ip":"10.0.3.201","method":"GET","path":"/status","tid":"R5U3KA5C-42"}
 package logger
 
 import (
