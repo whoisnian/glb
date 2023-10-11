@@ -2,7 +2,6 @@ package logger
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"runtime"
@@ -10,6 +9,7 @@ import (
 	"time"
 
 	"github.com/whoisnian/glb/httpd"
+	"github.com/whoisnian/glb/util/strutil"
 )
 
 func (l *Logger) Relay(store *httpd.Store) {
@@ -51,7 +51,8 @@ func (l *Logger) Relay(store *httpd.Store) {
 			buf := make([]byte, size)
 			buf = buf[:runtime.Stack(buf, false)]
 			if l.h.Enabled(LevelError) {
-				r := slog.NewRecord(time.Now(), LevelError, fmt.Sprintf("http panic: %v\n%s", err, buf), 0)
+				r := slog.NewRecord(time.Now(), LevelError, strutil.UnsafeBytesToString(buf), 0)
+				r.AddAttrs(slog.Any("panic", err))
 				r.AddAttrs(slog.String("tid", store.GetID()))
 				l.h.Handle(context.Background(), r)
 			}
