@@ -74,7 +74,7 @@ func (h *NanoHandler) Handle(_ context.Context, r slog.Record) error {
 	*buf = append(*buf, ' ')
 	appendShortLevel(buf, r.Level, h.Options.colorful)
 	// source
-	if h.Options.addSource {
+	if h.Options.addSource && r.PC > 0 {
 		*buf = append(*buf, ' ')
 		appendNanoSource(buf, r.PC)
 	}

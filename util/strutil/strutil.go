@@ -44,11 +44,13 @@ func UnsafeStringToBytes(s string) []byte {
 	if len(s) == 0 {
 		return []byte{}
 	}
+	// like https://cs.opensource.google/go/go/+/refs/tags/go1.21.1:src/os/file.go;l=253
 	return unsafe.Slice(unsafe.StringData(s), len(s))
 }
 
 // UnsafeBytesToString converts byte slice to string without allocation.
 // The bytes passed to function must not be modified afterwards.
 func UnsafeBytesToString(b []byte) string {
+	// like https://cs.opensource.google/go/go/+/refs/tags/go1.21.1:src/strings/builder.go;l=48
 	return unsafe.String(unsafe.SliceData(b), len(b))
 }

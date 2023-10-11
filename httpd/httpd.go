@@ -2,8 +2,12 @@
 package httpd
 
 import (
+	"crypto/rand"
+	"encoding/base32"
 	"net/http"
+	"strconv"
 	"sync"
+	"sync/atomic"
 )
 
 const MethodAll string = "*"
@@ -27,37 +31,57 @@ type Mux struct {
 
 	maxParams int
 	storePool sync.Pool
+	storeID   uint64
 
+	relayHandler  HandlerFunc
 	notFoundRoute *RouteInfo
 }
 
 // NewMux allocates and returns a new Mux.
 func NewMux() *Mux {
+	buf, prefix := make([]byte, 5), make([]byte, 9)
+	if _, err := rand.Read(buf); err != nil {
+		panic(err)
+	}
+	base32.StdEncoding.Encode(prefix, buf)
+	prefix[8] = '-'
+
 	mux := &Mux{root: new(treeNode)}
-	mux.HandleNotFound(NotFoundHandler)
-	mux.storePool.New = mux.newStore
+	mux.HandleRelay(func(store *Store) { store.I.HandlerFunc(store) })
+	mux.HandleNotFound(func(store *Store) { store.Error404("404 not found") })
+	mux.storePool.New = mux.newStoreWith(prefix)
 	return mux
 }
 
-func (mux *Mux) newStore() any {
-	params := Params{V: make([]string, 0, mux.maxParams)}
-	return &Store{P: &params}
+func (mux *Mux) newStoreWith(prefix []byte) func() any {
+	return func() any {
+		params := Params{V: make([]string, 0, mux.maxParams)}
+		buf := make([]byte, 9, 32)
+		copy(buf, prefix)
+		return &Store{W: &ResponseWriter{}, P: &params, id: buf}
+	}
 }
 
 // ServeHTTP dispatches the request to the matched handler.
 func (mux *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	store := mux.storePool.Get().(*Store)
-	store.W = w
+	store.W.Origin = w
 	store.R = r
-	store.P.V = store.P.V[:0]
+	store.id = strconv.AppendUint(store.id, atomic.AddUint64(&mux.storeID, 1), 36)
 
-	info := findRoute(mux.root, r.URL.Path, r.Method, store.P)
-	if info == nil {
-		info = mux.notFoundRoute
+	if info := findRoute(mux.root, r.URL.Path, r.Method, store.P); info != nil {
+		store.I = info
+	} else {
+		store.I = mux.notFoundRoute
 	}
-	store.I = info
-	info.HandlerFunc(store)
+	mux.relayHandler(store)
 
+	store.W.Origin = nil
+	store.W.Status = 0
+	store.R = nil
+	store.I = nil
+	store.P.V = store.P.V[:0]
+	store.id = store.id[:9]
 	mux.storePool.Put(store)
 }
 
@@ -74,10 +98,10 @@ func (mux *Mux) Handle(path string, method string, handler HandlerFunc) {
 	mux.maxParams = max(mux.maxParams, paramsCnt)
 }
 
-func (mux *Mux) HandleNotFound(handler HandlerFunc) {
-	mux.notFoundRoute = newRouteInfo("", "", handler)
+func (mux *Mux) HandleRelay(handler HandlerFunc) {
+	mux.relayHandler = handler
 }
 
-func NotFoundHandler(store *Store) {
-	store.Error404("404 not found")
+func (mux *Mux) HandleNotFound(handler HandlerFunc) {
+	mux.notFoundRoute = newRouteInfo("", "", handler)
 }

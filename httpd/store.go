@@ -3,6 +3,8 @@ package httpd
 import (
 	"encoding/json"
 	"net/http"
+
+	"github.com/whoisnian/glb/util/strutil"
 )
 
 // Params consists of a pair of key-value slice.
@@ -21,12 +23,53 @@ func (ps *Params) Get(key string) (value string, ok bool) {
 	return "", false
 }
 
+// ResponseWriter records response status with http.ResponseWriter.
+type ResponseWriter struct {
+	Origin http.ResponseWriter
+	Status int
+}
+
+func (w *ResponseWriter) Header() http.Header {
+	return w.Origin.Header()
+}
+
+func (w *ResponseWriter) Write(bytes []byte) (int, error) {
+	if w.Status == 0 {
+		w.WriteHeader(http.StatusOK)
+	}
+	return w.Origin.Write(bytes)
+}
+
+func (w *ResponseWriter) WriteHeader(code int) {
+	w.Origin.WriteHeader(code)
+	w.Status = code
+}
+
+// Flush implements the standard http.Flusher interface.
+func (w *ResponseWriter) Flush() {
+	if flusher, ok := w.Origin.(http.Flusher); ok {
+		flusher.Flush()
+	}
+}
+
+// FlushError attempts to invoke FlushError() of the standard http.ResponseWriter.
+func (w *ResponseWriter) FlushError() error {
+	if flusher, ok := w.Origin.(interface{ FlushError() error }); ok {
+		return flusher.FlushError()
+	} else if flusher, ok := w.Origin.(http.Flusher); ok {
+		flusher.Flush()
+	}
+	return nil
+}
+
 // Store consists of responseWriter, request, routeParams and routeInfo.
 type Store struct {
-	W http.ResponseWriter
+	W *ResponseWriter
 	R *http.Request
 	P *Params
 	I *RouteInfo
+
+	id []byte
 }
 
 type HandlerFunc func(*Store)
@@ -34,6 +77,11 @@ type HandlerFunc func(*Store)
 // CreateHandler converts 'http.HandlerFunc' to 'httpd.HandlerFunc'.
 func CreateHandler(httpHandler http.HandlerFunc) HandlerFunc {
 	return func(store *Store) { httpHandler(store.W, store.R) }
+}
+
+// GetID returns the Store's ID like FVHNU2LS-gjdgxz.
+func (store *Store) GetID() string {
+	return strutil.UnsafeBytesToString(store.id)
 }
 
 // RouteParam returns the value of specified route param, or empty string if param not found.
