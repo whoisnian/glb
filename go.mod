@@ -1,5 +1,5 @@
 module github.com/whoisnian/glb
 
-go 1.21.0
+go 1.21.3
 
-require golang.org/x/sys v0.11.0
+require golang.org/x/sys v0.13.0
