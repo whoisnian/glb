@@ -34,7 +34,7 @@ type Mux struct {
 	storeID   uint64
 
 	relayHandler  HandlerFunc
-	notFoundRoute *RouteInfo
+	routeNotFound *RouteInfo
 }
 
 // NewMux allocates and returns a new Mux.
@@ -48,7 +48,7 @@ func NewMux() *Mux {
 
 	mux := &Mux{root: new(treeNode)}
 	mux.HandleRelay(func(store *Store) { store.I.HandlerFunc(store) })
-	mux.HandleNotFound(func(store *Store) { store.Error404("404 not found") })
+	mux.HandleNoRoute(func(store *Store) { store.Error404("404 not found") })
 	mux.storePool.New = mux.newStoreWith(prefix)
 	return mux
 }
@@ -72,7 +72,7 @@ func (mux *Mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if info := findRoute(mux.root, r.URL.Path, r.Method, store.P); info != nil {
 		store.I = info
 	} else {
-		store.I = mux.notFoundRoute
+		store.I = mux.routeNotFound
 	}
 	mux.relayHandler(store)
 
@@ -90,7 +90,7 @@ func (mux *Mux) Handle(path string, method string, handler HandlerFunc) {
 	mux.mu.Lock()
 	defer mux.mu.Unlock()
 
-	info := newRouteInfo(method, path, handler)
+	info := newRouteInfo(path, method, handler)
 	paramsCnt, err := parseRoute(mux.root, path, method, info)
 	if err != nil {
 		panic(err)
@@ -102,6 +102,6 @@ func (mux *Mux) HandleRelay(handler HandlerFunc) {
 	mux.relayHandler = handler
 }
 
-func (mux *Mux) HandleNotFound(handler HandlerFunc) {
-	mux.notFoundRoute = newRouteInfo("", "", handler)
+func (mux *Mux) HandleNoRoute(handler HandlerFunc) {
+	mux.routeNotFound = newRouteInfo("", "", handler)
 }
