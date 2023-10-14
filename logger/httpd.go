@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/whoisnian/glb/ansi"
 	"github.com/whoisnian/glb/httpd"
 	"github.com/whoisnian/glb/util/strutil"
 )
@@ -17,6 +18,10 @@ func (l *Logger) Relay(store *httpd.Store) {
 	remoteAddr := store.R.RemoteAddr[0:strings.LastIndexByte(store.R.RemoteAddr, ':')]
 	if remoteAddr[0] == '[' {
 		remoteAddr = remoteAddr[1 : len(remoteAddr)-1]
+	}
+	tagEnd := AnsiString{"", "REQ_END"}
+	if l.h.IsColorful() {
+		tagEnd.Prefix = ansi.BlueFG
 	}
 	if l.h.Enabled(LevelInfo) {
 		r := slog.NewRecord(time.Now(), LevelInfo, "", 0)
@@ -33,7 +38,7 @@ func (l *Logger) Relay(store *httpd.Store) {
 		if l.h.Enabled(LevelInfo) {
 			r := slog.NewRecord(time.Now(), LevelInfo, "", 0)
 			r.AddAttrs(
-				slog.String("tag", "REQ_END"),
+				slog.Any("tag", tagEnd),
 				slog.Int("code", store.W.Status),
 				slog.Int64("dur", time.Since(start).Milliseconds()),
 				slog.String("ip", remoteAddr),
