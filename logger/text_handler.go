@@ -14,6 +14,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/whoisnian/glb/ansi"
 	"github.com/whoisnian/glb/util/strutil"
 )
 
@@ -197,6 +198,14 @@ func appendTextValue(buf *[]byte, v slog.Value) {
 				appendTextString(buf, err.Error())
 			} else {
 				appendTextString(buf, string(data))
+			}
+		} else if vv, ok := va.(AnsiString); ok {
+			if vv.Prefix == "" {
+				appendTextString(buf, vv.Value)
+			} else {
+				*buf = append(*buf, vv.Prefix...)
+				appendTextString(buf, vv.Value)
+				*buf = append(*buf, ansi.Reset...)
 			}
 		} else if vv, ok := va.(error); ok {
 			appendTextString(buf, vv.Error())

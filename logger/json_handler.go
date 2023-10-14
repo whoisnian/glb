@@ -12,6 +12,8 @@ import (
 	"sync"
 	"time"
 	"unicode/utf8"
+
+	"github.com/whoisnian/glb/ansi"
 )
 
 // JsonHandler formats slog.Record as line-delimited JSON objects.
@@ -194,6 +196,16 @@ func appendJsonValue(buf *[]byte, v slog.Value) {
 		} else if vv, ok := va.(error); ok {
 			*buf = append(*buf, '"')
 			appendJsonString(buf, vv.Error())
+			*buf = append(*buf, '"')
+		} else if vv, ok := va.(AnsiString); ok {
+			*buf = append(*buf, '"')
+			if vv.Prefix == "" {
+				appendJsonString(buf, vv.Value)
+			} else {
+				*buf = append(*buf, vv.Prefix...)
+				appendJsonString(buf, vv.Value)
+				*buf = append(*buf, ansi.Reset...)
+			}
 			*buf = append(*buf, '"')
 		} else {
 			appendJsonMarshal(buf, va)

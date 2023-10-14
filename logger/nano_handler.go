@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/whoisnian/glb/ansi"
 )
 
 // NanoHandler formats slog.Record as a sequence of value strings without attribute keys to minimize log length.
@@ -128,7 +130,18 @@ func appendNanoValue(buf *[]byte, v slog.Value) {
 	case slog.KindTime:
 		*buf = v.Time().AppendFormat(*buf, time.RFC3339)
 	case slog.KindAny, slog.KindLogValuer:
-		*buf = fmt.Append(*buf, v.Any())
+		va := v.Any()
+		if vv, ok := va.(AnsiString); ok {
+			if vv.Prefix == "" {
+				*buf = append(*buf, vv.Value...)
+			} else {
+				*buf = append(*buf, vv.Prefix...)
+				*buf = append(*buf, vv.Value...)
+				*buf = append(*buf, ansi.Reset...)
+			}
+		} else {
+			*buf = fmt.Append(*buf, va)
+		}
 	}
 }
 

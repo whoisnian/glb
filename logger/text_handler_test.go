@@ -13,6 +13,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/whoisnian/glb/ansi"
 )
 
 func TestTextHandlerWithAttrs(t *testing.T) {
@@ -144,6 +146,8 @@ func TestAppendTextAttr(t *testing.T) {
 		{slog.Any("e", io.EOF), ` e=EOF`},
 		{slog.Any("t", textM{""}), ` t=EMPTY`},
 		{slog.Any("t", textM{"value"}), ` t=TEXT{value}`},
+		{slog.Any("as", AnsiString{"", "test"}), " as=test"},
+		{slog.Any("as", AnsiString{ansi.RedFG, "test"}), " as=\x1b[31mtest\x1b[0m"},
 	}
 	buf := make([]byte, 32)
 	for _, test := range tests {
