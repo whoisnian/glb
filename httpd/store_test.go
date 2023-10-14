@@ -18,6 +18,38 @@ func (rw *fakeResponseWriter) Reset()                      { rw.code = 0; rw.buf
 func (rw *fakeResponseWriter) Header() http.Header         { return rw.header }
 func (rw *fakeResponseWriter) WriteHeader(statusCode int)  { rw.code = statusCode }
 func (rw *fakeResponseWriter) Write(b []byte) (int, error) { return rw.buf.Write(b) }
+func (rw *fakeResponseWriter) Flush()                      { rw.code = -1 }
+
+type fakeErrorFlusher struct {
+	fakeResponseWriter
+}
+
+func (rw *fakeErrorFlusher) FlushError() error { rw.code = -2; return nil }
+
+func TestFlush(t *testing.T) {
+	w := &fakeResponseWriter{}
+	store := &httpd.Store{W: &httpd.ResponseWriter{Origin: w}}
+	store.W.Flush()
+	if w.code != -1 {
+		t.Fatal("ResponseWriter.Flush should call Origin.Flush successfully")
+	}
+}
+
+func TestFlushError(t *testing.T) {
+	w := &fakeResponseWriter{}
+	store := &httpd.Store{W: &httpd.ResponseWriter{Origin: w}}
+	err := store.W.FlushError()
+	if err != nil || w.code != -1 {
+		t.Fatal("ResponseWriter.FlushError should call Origin.Flush successfully")
+	}
+
+	f := &fakeErrorFlusher{}
+	store = &httpd.Store{W: &httpd.ResponseWriter{Origin: f}}
+	err = store.W.FlushError()
+	if err != nil || f.code != -2 {
+		t.Fatal("ResponseWriter.FlushError should call Origin.FlushError successfully")
+	}
+}
 
 func TestCreateHandler(t *testing.T) {
 	store := &httpd.Store{W: &httpd.ResponseWriter{}, R: &http.Request{}}

@@ -178,3 +178,8 @@ func (l *Logger) logAttrs(ctx context.Context, level slog.Level, msg string, att
 	r.AddAttrs(attrs...)
 	return l.h.Handle(ctx, r)
 }
+
+type AnsiString struct {
+	Prefix string
+	Value  string
+}

@@ -13,6 +13,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/whoisnian/glb/ansi"
 )
 
 func TestJsonHandlerWithAttrs(t *testing.T) {
@@ -160,6 +162,8 @@ func TestAppendJsonAttr(t *testing.T) {
 		{slog.Any("t", jsonM{""}), `"t":"EMPTY"`},
 		{slog.Any("t", jsonM{"E"}), `"t":"invalid character 'E' looking for beginning of value"`},
 		{slog.Any("t", jsonM{"value"}), `"t":"JSON{value}"`},
+		{slog.Any("as", AnsiString{"", "test"}), `"as":"test"`},
+		{slog.Any("as", AnsiString{ansi.RedFG, "test"}), "\"as\":\"\x1b[31mtest\x1b[0m\""},
 	}
 	buf := make([]byte, 32)
 	for _, test := range tests {

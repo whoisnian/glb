@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/whoisnian/glb/ansi"
 )
 
 var testTime = time.Date(2000, 1, 2, 3, 4, 5, 6, time.UTC)
@@ -125,6 +127,8 @@ func TestAppendNanoValue(t *testing.T) {
 		), " GET 200"},
 		{slog.AnyValue([]byte("test")), " [116 101 115 116]"},
 		{slog.AnyValue(map[string]int{"age": 18}), " map[age:18]"},
+		{slog.AnyValue(AnsiString{"", "test"}), " test"},
+		{slog.AnyValue(AnsiString{ansi.RedFG, "test"}), " \x1b[31mtest\x1b[0m"},
 	}
 	buf := make([]byte, 32)
 	for _, test := range tests {
