@@ -3,7 +3,9 @@ package httpd
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
+	"github.com/whoisnian/glb/util/netutil"
 	"github.com/whoisnian/glb/util/strutil"
 )
 
@@ -82,6 +84,30 @@ func CreateHandler(httpHandler http.HandlerFunc) HandlerFunc {
 // GetID returns the Store's ID like FVHNU2LS-gjdgxz.
 func (store *Store) GetID() string {
 	return strutil.UnsafeBytesToString(store.id)
+}
+
+// GetClientIP looks for possible client IP by the following order:
+//   - Header["X-Client-IP"]
+//   - Header["X-Forwarded-For"]
+//   - Header["X-Real-IP"]
+//   - Request.RemoteAddr
+//
+// Warning: Malicious clients may use request header for IP spoofing.
+func (store *Store) GetClientIP() string {
+	if ip := store.R.Header.Get("X-Client-IP"); ip != "" {
+		return ip
+	}
+	if ip := store.R.Header.Get("X-Forwarded-For"); ip != "" {
+		if i := strings.IndexByte(ip, ','); i != -1 {
+			return ip[:i]
+		}
+		return ip
+	}
+	if ip := store.R.Header.Get("X-Real-IP"); ip != "" {
+		return ip
+	}
+	host, _ := netutil.SplitHostPort(store.R.RemoteAddr)
+	return host
 }
 
 // RouteParam returns the value of specified route param, or empty string if param not found.

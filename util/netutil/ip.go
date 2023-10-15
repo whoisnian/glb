@@ -15,3 +15,18 @@ func LastIP(cidr *net.IPNet) net.IP {
 	}
 	return ip
 }
+
+// SplitHostPort splits "host:port" or "[host]:port" into host and port without strict validation.
+func SplitHostPort(addr string) (host, port string) {
+	i := len(addr) - 1
+	for ; i >= 0; i-- {
+		if addr[i] == ':' {
+			if addr[0] == '[' && addr[i-1] == ']' {
+				return addr[1 : i-1], addr[i+1:]
+			} else {
+				return addr[0:i], addr[i+1:]
+			}
+		}
+	}
+	return addr, ""
+}
