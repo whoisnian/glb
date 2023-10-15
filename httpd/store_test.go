@@ -61,6 +61,38 @@ func TestCreateHandler(t *testing.T) {
 	httpd.CreateHandler(httpHandler)(store)
 }
 
+func TestGetClientIP(t *testing.T) {
+	store := &httpd.Store{W: &httpd.ResponseWriter{}, R: &http.Request{Header: make(http.Header)}}
+	if got := store.GetClientIP(); got != "" {
+		t.Fatalf("store.GetClientIP() = %q, want %q", got, "")
+	}
+	// Request.RemoteAddr
+	store.R.RemoteAddr = "127.0.0.1"
+	if got := store.GetClientIP(); got != "127.0.0.1" {
+		t.Fatalf("store.GetClientIP() = %q, want %q", got, "127.0.0.1")
+	}
+	// Header["X-Real-IP"]
+	store.R.Header.Set("X-Real-IP", "172.31.0.10")
+	if got := store.GetClientIP(); got != "172.31.0.10" {
+		t.Fatalf("store.GetClientIP() = %q, want %q", got, "172.31.0.10")
+	}
+	// Header["X-Forwarded-For"]
+	store.R.Header.Set("X-Forwarded-For", "192.168.0.2")
+	if got := store.GetClientIP(); got != "192.168.0.2" {
+		t.Fatalf("store.GetClientIP() = %q, want %q", got, "192.168.0.2")
+	}
+	// Header["X-Forwarded-For"]
+	store.R.Header.Set("X-Forwarded-For", "192.168.0.3, 172.31.0.10")
+	if got := store.GetClientIP(); got != "192.168.0.3" {
+		t.Fatalf("store.GetClientIP() = %q, want %q", got, "192.168.0.3")
+	}
+	// Header["X-Client-IP"]
+	store.R.Header.Set("X-Client-IP", "8.8.8.8")
+	if got := store.GetClientIP(); got != "8.8.8.8" {
+		t.Fatalf("store.GetClientIP() = %q, want %q", got, "8.8.8.8")
+	}
+}
+
 func TestCookieValue(t *testing.T) {
 	tests := []struct {
 		k, v string

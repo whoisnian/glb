@@ -5,20 +5,17 @@ import (
 	"log/slog"
 	"net/http"
 	"runtime"
-	"strings"
 	"time"
 
 	"github.com/whoisnian/glb/ansi"
 	"github.com/whoisnian/glb/httpd"
+	"github.com/whoisnian/glb/util/netutil"
 	"github.com/whoisnian/glb/util/strutil"
 )
 
 func (l *Logger) Relay(store *httpd.Store) {
 	start := time.Now()
-	remoteAddr := store.R.RemoteAddr[0:strings.LastIndexByte(store.R.RemoteAddr, ':')]
-	if remoteAddr[0] == '[' {
-		remoteAddr = remoteAddr[1 : len(remoteAddr)-1]
-	}
+	remoteIP, _ := netutil.SplitHostPort(store.R.RemoteAddr)
 	tagEnd := AnsiString{"", "REQ_END"}
 	if l.h.IsColorful() {
 		tagEnd.Prefix = ansi.BlueFG
@@ -27,7 +24,7 @@ func (l *Logger) Relay(store *httpd.Store) {
 		r := slog.NewRecord(time.Now(), LevelInfo, "", 0)
 		r.AddAttrs(
 			slog.String("tag", "REQ_BEG"),
-			slog.String("ip", remoteAddr),
+			slog.String("ip", remoteIP),
 			slog.String("method", store.R.Method),
 			slog.String("path", store.R.RequestURI),
 			slog.String("tid", store.GetID()),
@@ -41,7 +38,7 @@ func (l *Logger) Relay(store *httpd.Store) {
 				slog.Any("tag", tagEnd),
 				slog.Int("code", store.W.Status),
 				slog.Int64("dur", time.Since(start).Milliseconds()),
-				slog.String("ip", remoteAddr),
+				slog.String("ip", remoteIP),
 				slog.String("method", store.R.Method),
 				slog.String("path", store.R.RequestURI),
 				slog.String("tid", store.GetID()),
