@@ -47,3 +47,26 @@ func TestLastIP(t *testing.T) {
 		}
 	}
 }
+
+func TestSplitHostPort(t *testing.T) {
+	var tests = []struct {
+		addr string
+		host string
+		port string
+	}{
+		{"127.0.0.1:80", "127.0.0.1", "80"},
+		{"[::1]:80", "::1", "80"},
+		{"127.0.0.1:", "127.0.0.1", ""},
+		{"[::1]:", "::1", ""},
+		{"127.0.0.1", "127.0.0.1", ""},
+		{":80", "", "80"},
+		{":", "", ""},
+		{"", "", ""},
+	}
+	for _, test := range tests {
+		host, port := netutil.SplitHostPort(test.addr)
+		if host != test.host || port != test.port {
+			t.Fatalf("splitHostPort(%s) = (%s,%s), want (%s,%s)", test.addr, host, port, test.host, test.port)
+		}
+	}
+}
