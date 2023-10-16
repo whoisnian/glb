@@ -35,6 +35,7 @@ func TestRelay4(t *testing.T) {
 	mux.Handle("/400", http.MethodPost, func(s *httpd.Store) { s.W.WriteHeader(400) })
 	mux.Handle("/403", http.MethodPut, func(s *httpd.Store) { s.W.WriteHeader(403) })
 	mux.Handle("/404", http.MethodDelete, func(s *httpd.Store) { s.W.WriteHeader(404) })
+	mux.Handle("/empty", http.MethodGet, func(s *httpd.Store) {})
 
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -54,6 +55,7 @@ func TestRelay4(t *testing.T) {
 		{http.MethodPut, "/403", "403"},
 		{http.MethodDelete, "/404", "404"},
 		{http.MethodGet, "/not-found", "404"},
+		{http.MethodGet, "/empty", "200"},
 	}
 	for _, test := range tests {
 		buf.Reset()
@@ -78,6 +80,7 @@ func TestRelay6(t *testing.T) {
 	mux.Handle("/400", http.MethodPost, func(s *httpd.Store) { s.W.WriteHeader(400) })
 	mux.Handle("/403", http.MethodPut, func(s *httpd.Store) { s.W.WriteHeader(403) })
 	mux.Handle("/404", http.MethodDelete, func(s *httpd.Store) { s.W.WriteHeader(404) })
+	mux.Handle("/empty", http.MethodGet, func(s *httpd.Store) {})
 
 	ln, err := net.Listen("tcp", "[::1]:0")
 	if err != nil {
@@ -97,6 +100,7 @@ func TestRelay6(t *testing.T) {
 		{http.MethodPut, "/403", "403"},
 		{http.MethodDelete, "/404", "404"},
 		{http.MethodGet, "/not-found", "404"},
+		{http.MethodGet, "/empty", "200"},
 	}
 	for _, test := range tests {
 		buf.Reset()

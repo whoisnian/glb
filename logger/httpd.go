@@ -33,6 +33,9 @@ func (l *Logger) Relay(store *httpd.Store) {
 	}
 	defer func() {
 		if l.h.Enabled(LevelInfo) {
+			if store.W.Status == 0 {
+				store.W.Status = http.StatusOK
+			}
 			r := slog.NewRecord(time.Now(), LevelInfo, "", 0)
 			r.AddAttrs(
 				slog.Any("tag", tagEnd),
