@@ -2,16 +2,22 @@ package fsutil_test
 
 import (
 	"os"
+	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/whoisnian/glb/util/fsutil"
 )
 
 func TestResolveHomeDir(t *testing.T) {
-	// test for Unix
-	env := os.Getenv("HOME")
-	defer os.Setenv("HOME", env)
-	os.Setenv("HOME", "/home/user")
+	homeKey, homeVal := "HOME", "/home/nian"
+	if runtime.GOOS == "windows" {
+		homeKey = "USERPROFILE"
+		homeVal = `C:\Users\nian`
+	}
+	env := os.Getenv(homeKey)
+	defer os.Setenv(homeKey, env)
+	os.Setenv(homeKey, homeVal)
 
 	var tests = []struct {
 		input string
@@ -20,16 +26,20 @@ func TestResolveHomeDir(t *testing.T) {
 		{"", "."},        // clean only
 		{"./doc", "doc"}, // clean only
 		{"/tmp", "/tmp"}, // clean only
-		{"~/", "/home/user"},
-		{"~/.", "/home/user"},
-		{"~/..", "/home"},
-		{"~/ssh", "/home/user/ssh"},
+		{"~/", homeVal},
+		{"~/.", homeVal},
+		{"~/..", filepath.Dir(homeVal)},
+		{"~/ssh", homeVal + "/ssh"},
 	}
 	for _, test := range tests {
+		want := test.want
+		if runtime.GOOS == "windows" {
+			want = filepath.FromSlash(test.want)
+		}
 		if got, err := fsutil.ResolveHomeDir(test.input); err != nil {
 			t.Errorf("ResolveHomeDir(%q) error: %v", test.input, err)
-		} else if got != test.want {
-			t.Errorf("ResolveHomeDir(%q) = %q, want %q", test.input, got, test.want)
+		} else if got != want {
+			t.Errorf("ResolveHomeDir(%q) = %q, want %q", test.input, got, want)
 		}
 	}
 }
@@ -49,8 +59,12 @@ func TestResolveBase(t *testing.T) {
 		{"/data", "/doc/..", "/data"},
 	}
 	for _, test := range tests {
-		if got := fsutil.ResolveBase(test.inputBase, test.inputRaw); got != test.want {
-			t.Errorf("ResolveBase(%q, %q) = %q, want %q", test.inputBase, test.inputRaw, got, test.want)
+		want := test.want
+		if runtime.GOOS == "windows" {
+			want = filepath.FromSlash(test.want)
+		}
+		if got := fsutil.ResolveBase(test.inputBase, test.inputRaw); got != want {
+			t.Errorf("ResolveBase(%q, %q) = %q, want %q", test.inputBase, test.inputRaw, got, want)
 		}
 	}
 }
