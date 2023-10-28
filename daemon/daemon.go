@@ -1,3 +1,5 @@
+//go:build !windows
+
 // Package daemon creates orphan process as daemon.
 //  1. Current process use Launch() to start launcher and wait.
 //  2. Launcher use launch() to start daemon and wait.
