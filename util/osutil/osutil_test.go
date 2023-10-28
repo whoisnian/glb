@@ -2,6 +2,7 @@ package osutil_test
 
 import (
 	"os"
+	"runtime"
 	"testing"
 	"time"
 
@@ -9,6 +10,10 @@ import (
 )
 
 func TestWaitForInterrupt(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skipf("sending os.Interrupt is not implemented for windows")
+	}
+
 	done := make(chan struct{})
 	waitingTime := 50 * time.Millisecond
 	timeoutTime := 10*time.Millisecond + waitingTime
