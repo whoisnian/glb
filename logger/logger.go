@@ -39,6 +39,7 @@ package logger
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 	"runtime"
@@ -112,9 +113,19 @@ func (l *Logger) Debug(msg string, args ...any) {
 	l.log(context.Background(), LevelDebug, msg, args...)
 }
 
+// Debugf formats message at LevelDebug.
+func (l *Logger) Debugf(format string, args ...any) {
+	l.logf(context.Background(), LevelDebug, format, args...)
+}
+
 // Info logs at LevelInfo.
 func (l *Logger) Info(msg string, args ...any) {
 	l.log(context.Background(), LevelInfo, msg, args...)
+}
+
+// Infof formats message at LevelInfo.
+func (l *Logger) Infof(format string, args ...any) {
+	l.logf(context.Background(), LevelInfo, format, args...)
 }
 
 // Warn logs at LevelWarn.
@@ -122,9 +133,19 @@ func (l *Logger) Warn(msg string, args ...any) {
 	l.log(context.Background(), LevelWarn, msg, args...)
 }
 
+// Warnf formats message at LevelWarn.
+func (l *Logger) Warnf(format string, args ...any) {
+	l.logf(context.Background(), LevelWarn, format, args...)
+}
+
 // Error logs at LevelError.
 func (l *Logger) Error(msg string, args ...any) {
 	l.log(context.Background(), LevelError, msg, args...)
+}
+
+// Errorf formats message at LevelError.
+func (l *Logger) Errorf(format string, args ...any) {
+	l.logf(context.Background(), LevelError, format, args...)
 }
 
 // Panic logs at LevelError and follows with a call to panic(msg).
@@ -133,15 +154,32 @@ func (l *Logger) Panic(msg string, args ...any) {
 	panic(msg)
 }
 
+// Panicf formats message at LevelError and follows with a call to panic(message).
+func (l *Logger) Panicf(format string, args ...any) {
+	l.logf(context.Background(), LevelError, format, args...)
+	panic(fmt.Sprintf(format, args...))
+}
+
 // Fatal logs at LevelFatal and follows with a call to os.Exit(1).
 func (l *Logger) Fatal(msg string, args ...any) {
 	l.log(context.Background(), LevelFatal, msg, args...)
 	os.Exit(1)
 }
 
+// Fatalf formats message at LevelFatal and follows with a call to os.Exit(1).
+func (l *Logger) Fatalf(format string, args ...any) {
+	l.logf(context.Background(), LevelFatal, format, args...)
+	os.Exit(1)
+}
+
 // Log emits a log record with the current time and the given level and message.
 func (l *Logger) Log(ctx context.Context, level slog.Level, msg string, args ...any) {
 	l.log(ctx, level, msg, args...)
+}
+
+// Logf emits a log record with the current time and the given level and format message.
+func (l *Logger) Logf(ctx context.Context, level slog.Level, format string, args ...any) {
+	l.logf(ctx, level, format, args...)
 }
 
 // LogAttrs is a more efficient version of [Logger.Log] that accepts only Attrs.
@@ -161,6 +199,20 @@ func (l *Logger) log(ctx context.Context, level slog.Level, msg string, args ...
 	}
 	r := slog.NewRecord(time.Now(), level, msg, pc)
 	r.Add(args...)
+	return l.h.Handle(ctx, r)
+}
+
+func (l *Logger) logf(ctx context.Context, level slog.Level, format string, args ...any) error {
+	if !l.h.Enabled(level) {
+		return nil
+	}
+	var pc uintptr
+	if l.h.IsAddSource() {
+		var pcs [1]uintptr
+		runtime.Callers(3, pcs[:])
+		pc = pcs[0]
+	}
+	r := slog.NewRecord(time.Now(), level, fmt.Sprintf(format, args...), pc)
 	return l.h.Handle(ctx, r)
 }
 
