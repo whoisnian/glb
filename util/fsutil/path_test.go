@@ -9,7 +9,7 @@ import (
 	"github.com/whoisnian/glb/util/fsutil"
 )
 
-func TestResolveHomeDir(t *testing.T) {
+func TestExpandHomeDir(t *testing.T) {
 	homeKey, homeVal := "HOME", "/home/nian"
 	if runtime.GOOS == "windows" {
 		homeKey = "USERPROFILE"
@@ -26,6 +26,8 @@ func TestResolveHomeDir(t *testing.T) {
 		{"", "."},        // clean only
 		{"./doc", "doc"}, // clean only
 		{"/tmp", "/tmp"}, // clean only
+		{"~tmp", "~tmp"}, // clean only
+		{"~", homeVal},
 		{"~/", homeVal},
 		{"~/.", homeVal},
 		{"~/..", filepath.Dir(homeVal)},
@@ -36,15 +38,15 @@ func TestResolveHomeDir(t *testing.T) {
 		if runtime.GOOS == "windows" {
 			want = filepath.FromSlash(test.want)
 		}
-		if got, err := fsutil.ResolveHomeDir(test.input); err != nil {
-			t.Errorf("ResolveHomeDir(%q) error: %v", test.input, err)
+		if got, err := fsutil.ExpandHomeDir(test.input); err != nil {
+			t.Errorf("ExpandHomeDir(%q) error: %v", test.input, err)
 		} else if got != want {
-			t.Errorf("ResolveHomeDir(%q) = %q, want %q", test.input, got, want)
+			t.Errorf("ExpandHomeDir(%q) = %q, want %q", test.input, got, want)
 		}
 	}
 }
 
-func TestResolveBase(t *testing.T) {
+func TestResolveUrlPath(t *testing.T) {
 	var tests = []struct {
 		inputBase string
 		inputRaw  string
@@ -63,8 +65,8 @@ func TestResolveBase(t *testing.T) {
 		if runtime.GOOS == "windows" {
 			want = filepath.FromSlash(test.want)
 		}
-		if got := fsutil.ResolveBase(test.inputBase, test.inputRaw); got != want {
-			t.Errorf("ResolveBase(%q, %q) = %q, want %q", test.inputBase, test.inputRaw, got, want)
+		if got := fsutil.ResolveUrlPath(test.inputBase, test.inputRaw); got != want {
+			t.Errorf("ResolveUrlPath(%q, %q) = %q, want %q", test.inputBase, test.inputRaw, got, want)
 		}
 	}
 }

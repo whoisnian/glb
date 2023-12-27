@@ -303,7 +303,7 @@ func (f *FlagSet) addFieldToFlagSet(i int, name string, defValue string, usage s
 func (f *FlagSet) unmarshalConfigJson(configJsonMap *map[string]json.RawMessage) (err error) {
 	var data []byte
 	if f.configSource != "" {
-		fPath, err := fsutil.ResolveHomeDir(f.configSource)
+		fPath, err := fsutil.ExpandHomeDir(f.configSource)
 		if err != nil {
 			return err
 		}

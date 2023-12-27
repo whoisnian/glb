@@ -4,25 +4,25 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"strings"
 )
 
-// ResolveHomeDir resolve prefix '~' in path with environment variable.
-func ResolveHomeDir(rawPath string) (string, error) {
-	if strings.HasPrefix(rawPath, "~/") {
-		homeDir, err := os.UserHomeDir()
-		if err != nil {
-			return "", err
-		}
-		return filepath.Join(homeDir, rawPath[2:]), nil
+// ExpandHomeDir expands prefix '~' in rawFilePath with HOME environment variable.
+func ExpandHomeDir(rawFilePath string) (string, error) {
+	if len(rawFilePath) == 0 || rawFilePath[0] != '~' || (len(rawFilePath) > 1 && rawFilePath[1] != '/' && rawFilePath[1] != '\\') {
+		return filepath.Clean(rawFilePath), nil
 	}
-	return filepath.Clean(rawPath), nil
+
+	homeDir, err := os.UserHomeDir()
+	if err != nil || len(rawFilePath) == 1 {
+		return homeDir, err
+	}
+	return filepath.Join(homeDir, rawFilePath[1:]), nil
 }
 
-// ResolveBase resolve rawPath within the basePath.
-func ResolveBase(basePath string, rawPath string) string {
-	if rawPath == "" || rawPath[0] != '/' {
-		rawPath = "/" + rawPath
+// ResolveUrlPath resolves rawUrlPath within the baseFilePath.
+func ResolveUrlPath(baseFilePath string, rawUrlPath string) string {
+	if rawUrlPath == "" || rawUrlPath[0] != '/' {
+		rawUrlPath = "/" + rawUrlPath
 	}
-	return filepath.Join(basePath, filepath.FromSlash(path.Clean(rawPath)))
+	return filepath.Join(baseFilePath, filepath.FromSlash(path.Clean(rawUrlPath)))
 }
