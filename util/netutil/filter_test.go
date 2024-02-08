@@ -2,11 +2,13 @@ package netutil
 
 import (
 	"bytes"
-	"math/rand"
+	"math/rand/v2"
 	"net"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/whoisnian/glb/util/ioutil"
 )
 
 type SimpleIPNetList struct {
@@ -50,17 +52,17 @@ func (s *SimpleIPNetList) Contains(ip net.IP) bool {
 }
 
 func testIPv4Filter(t *testing.T, size int) {
-	var SEED = time.Now().Unix()
-	t.Logf("Running tests with rand seed %v", SEED)
+	var SEED = uint64(time.Now().Unix())
+	t.Logf("Running tests with PCG seed (0,%v)", SEED)
+	rd := rand.New(rand.NewPCG(0, SEED))
 
-	r := rand.New(rand.NewSource(SEED))
 	simple := NewSimpleIPNetList()
 	filter := NewIPv4Filter()
 	delList := []*net.IPNet{}
 	for i := 0; i < size; i++ {
 		buf := make([]byte, net.IPv4len)
-		r.Read(buf)
-		cidr := &net.IPNet{IP: buf, Mask: net.CIDRMask(r.Intn(23)+10, 32)}
+		ioutil.ReadRand(rd, buf)
+		cidr := &net.IPNet{IP: buf, Mask: net.CIDRMask(rd.IntN(23)+10, 32)}
 		simple.Add(cidr)
 		filter.Add(cidr)
 		if i%3 == 0 {
@@ -74,7 +76,7 @@ func testIPv4Filter(t *testing.T, size int) {
 
 	buf := make([]byte, net.IPv4len)
 	for i := 0; i < 1e5; i++ {
-		r.Read(buf)
+		ioutil.ReadRand(rd, buf)
 		if simple.Contains(buf) != filter.Contains(buf) {
 			t.Log(simple.ipList)
 			t.Log(filter.ipMaps)
@@ -123,14 +125,14 @@ type Filter interface {
 }
 
 func benchmarkFilter(b *testing.B, f Filter, size int) {
-	var SEED = time.Now().Unix()
-	b.Logf("Running tests with rand seed %v", SEED)
+	var SEED = uint64(time.Now().Unix())
+	b.Logf("Running tests with PCG seed (0,%v)", SEED)
+	rd := rand.New(rand.NewPCG(0, SEED))
 
-	r := rand.New(rand.NewSource(SEED))
 	for i := 0; i < size; i++ {
 		buf := make([]byte, net.IPv4len)
-		r.Read(buf)
-		cidr := &net.IPNet{IP: buf, Mask: net.CIDRMask(r.Intn(25)+8, 32)}
+		ioutil.ReadRand(rd, buf)
+		cidr := &net.IPNet{IP: buf, Mask: net.CIDRMask(rd.IntN(25)+8, 32)}
 		f.Add(cidr)
 	}
 
@@ -138,7 +140,7 @@ func benchmarkFilter(b *testing.B, f Filter, size int) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		r.Read(buf)
+		ioutil.ReadRand(rd, buf)
 		f.Contains(buf)
 	}
 }
