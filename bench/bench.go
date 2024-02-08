@@ -2,12 +2,15 @@ package bench
 
 import (
 	"net/http"
+	"regexp"
 	"runtime"
 
 	"github.com/gin-gonic/gin"
 	"github.com/julienschmidt/httprouter"
 	"github.com/whoisnian/glb/httpd"
 )
+
+var stdPatternReg = regexp.MustCompile(`/:([^/]+)`)
 
 func init() {
 	runtime.GOMAXPROCS(1)
@@ -17,6 +20,10 @@ func init() {
 type route struct {
 	method string
 	path   string
+}
+
+func (r route) stdPattern() string {
+	return r.method + " " + stdPatternReg.ReplaceAllString(r.path, `/{$1}`)
 }
 
 // httpd
@@ -62,6 +69,21 @@ func httpRouterLoad(routes []route, test bool) http.Handler {
 	router := httprouter.New()
 	for _, route := range routes {
 		router.Handle(route.method, route.path, h)
+	}
+	return router
+}
+
+// Stdhttp
+func stdhttpHandler(_ http.ResponseWriter, _ *http.Request)     {}
+func stdhttpHandlerTest(w http.ResponseWriter, r *http.Request) { w.Write([]byte(r.RequestURI)) }
+func stdhttpLoad(routes []route, test bool) http.Handler {
+	h := stdhttpHandler
+	if test {
+		h = stdhttpHandlerTest
+	}
+	router := http.NewServeMux()
+	for _, route := range routes {
+		router.HandleFunc(route.stdPattern(), h)
 	}
 	return router
 }

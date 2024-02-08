@@ -12,6 +12,7 @@ func init() {
 	calcMem("HttpRouter", func() { githubHttpRouter = httpRouterLoad(githubAPI, false) })
 	calcMem("Gin", func() { githubGin = ginLoad(githubAPI, false) })
 	calcMem("Httpd", func() { githubHttpd = httpdLoad(githubAPI, false) })
+	calcMem("Stdhttp", func() { githubStdhttp = stdhttpLoad(githubAPI, false) })
 	println()
 }
 
@@ -43,6 +44,7 @@ var routers = []struct {
 	{"HttpRouter", httpRouterLoad},
 	{"Gin", ginLoad},
 	{"Httpd", httpdLoad},
+	{"Stdhttp", stdhttpLoad},
 }
 
 func TestRouters(t *testing.T) {
@@ -74,6 +76,7 @@ var (
 	githubHttpd      http.Handler
 	githubGin        http.Handler
 	githubHttpRouter http.Handler
+	githubStdhttp    http.Handler
 )
 
 type mockResponseWriter struct{}
@@ -110,4 +113,7 @@ func BenchmarkGinRouter_GithubAll(b *testing.B) {
 }
 func BenchmarkHttpd_GithubAll(b *testing.B) {
 	benchRoutes(b, githubHttpd, githubAPI)
+}
+func BenchmarkStdhttp_GithubAll(b *testing.B) {
+	benchRoutes(b, githubStdhttp, githubAPI)
 }
