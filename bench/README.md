@@ -95,3 +95,23 @@ BenchmarkHttpd_GithubAll           44200             27045 ns/op               0
 PASS
 ok      github.com/whoisnian/glb/bench  4.281s
 ```
+
+## 20240208
+```
+#GithubAPI Routes: 203
+   HttpRouter: 37136 Bytes
+   Gin: 58792 Bytes
+   Httpd: 84464 Bytes
+   Stdhttp: 115120 Bytes
+
+goos: linux
+goarch: amd64
+pkg: github.com/whoisnian/glb/bench
+cpu: AMD Ryzen 7 3700X 8-Core Processor             
+BenchmarkHttpRouter_GithubAll      74302             16152 ns/op               0 B/op          0 allocs/op
+BenchmarkGinRouter_GithubAll       63405             18355 ns/op               0 B/op          0 allocs/op
+BenchmarkHttpd_GithubAll           39174             30741 ns/op               0 B/op          0 allocs/op
+BenchmarkStdhttp_GithubAll         13075             92029 ns/op            9744 B/op        337 allocs/op
+PASS
+ok      github.com/whoisnian/glb/bench  6.407s
+```
