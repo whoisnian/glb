@@ -16,10 +16,6 @@ import (
 func (l *Logger) Relay(store *httpd.Store) {
 	start := time.Now()
 	remoteIP, _ := netutil.SplitHostPort(store.R.RemoteAddr)
-	tagEnd := AnsiString{"", "REQ_END"}
-	if l.h.IsColorful() {
-		tagEnd.Prefix = ansi.BlueFG
-	}
 	if l.h.Enabled(LevelInfo) {
 		r := slog.NewRecord(time.Now(), LevelInfo, "", 0)
 		r.AddAttrs(
@@ -38,7 +34,7 @@ func (l *Logger) Relay(store *httpd.Store) {
 			}
 			r := slog.NewRecord(time.Now(), LevelInfo, "", 0)
 			r.AddAttrs(
-				slog.Any("tag", tagEnd),
+				slog.Any("tag", AnsiString{ansi.BlueFG, "REQ_END"}),
 				slog.Int("code", store.W.Status),
 				slog.Int64("dur", time.Since(start).Milliseconds()),
 				slog.String("ip", remoteIP),
