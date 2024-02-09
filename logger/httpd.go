@@ -46,8 +46,8 @@ func (l *Logger) Relay(store *httpd.Store) {
 		}
 	}()
 	defer func() {
-		// https://cs.opensource.google/go/go/+/refs/tags/go1.21.1:src/net/http/server.go;l=1865
-		if err := recover(); err != nil {
+		// https://cs.opensource.google/go/go/+/refs/tags/go1.22.0:src/net/http/server.go;l=1894
+		if err := recover(); err != nil && err != http.ErrAbortHandler {
 			const size = 64 << 10
 			buf := make([]byte, size)
 			buf = buf[:runtime.Stack(buf, false)]
