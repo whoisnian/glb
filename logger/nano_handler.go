@@ -51,7 +51,7 @@ func (h *NanoHandler) WithAttrs(attrs []slog.Attr) Handler {
 
 	h2 := h.clone()
 	for _, a := range attrs {
-		appendNanoValue(&h2.preformatted, a.Value)
+		appendNanoValue(&h2.preformatted, a.Value, h.Options.colorful)
 	}
 	return h2
 }
@@ -92,7 +92,7 @@ func (h *NanoHandler) Handle(_ context.Context, r slog.Record) error {
 
 	if r.NumAttrs() > 0 {
 		r.Attrs(func(a slog.Attr) bool {
-			appendNanoValue(buf, a.Value)
+			appendNanoValue(buf, a.Value, h.Options.colorful)
 			return true
 		})
 	}
@@ -104,11 +104,11 @@ func (h *NanoHandler) Handle(_ context.Context, r slog.Record) error {
 	return err
 }
 
-func appendNanoValue(buf *[]byte, v slog.Value) {
+func appendNanoValue(buf *[]byte, v slog.Value, colorful bool) {
 	v = v.Resolve()
 	if v.Kind() == slog.KindGroup {
 		for _, a := range v.Group() {
-			appendNanoValue(buf, a.Value)
+			appendNanoValue(buf, a.Value, colorful)
 		}
 		return
 	}
@@ -132,12 +132,12 @@ func appendNanoValue(buf *[]byte, v slog.Value) {
 	case slog.KindAny, slog.KindLogValuer:
 		va := v.Any()
 		if vv, ok := va.(AnsiString); ok {
-			if vv.Prefix == "" {
-				*buf = append(*buf, vv.Value...)
-			} else {
+			if colorful && vv.Prefix != "" {
 				*buf = append(*buf, vv.Prefix...)
 				*buf = append(*buf, vv.Value...)
 				*buf = append(*buf, ansi.Reset...)
+			} else {
+				*buf = append(*buf, vv.Value...)
 			}
 		} else {
 			*buf = fmt.Append(*buf, va)

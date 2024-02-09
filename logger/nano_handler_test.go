@@ -127,13 +127,13 @@ func TestAppendNanoValue(t *testing.T) {
 		), " GET 200"},
 		{slog.AnyValue([]byte("test")), " [116 101 115 116]"},
 		{slog.AnyValue(map[string]int{"age": 18}), " map[age:18]"},
-		{slog.AnyValue(AnsiString{"", "test"}), " test"},
+		{slog.AnyValue(AnsiString{ansi.RedFG, "test"}), " test"},
 		{slog.AnyValue(AnsiString{ansi.RedFG, "test"}), " \x1b[31mtest\x1b[0m"},
 	}
 	buf := make([]byte, 32)
-	for _, test := range tests {
+	for i, test := range tests {
 		buf = buf[:0]
-		appendNanoValue(&buf, test.input)
+		appendNanoValue(&buf, test.input, i == len(tests)-1)
 
 		got := string(buf)
 		if got != test.want {

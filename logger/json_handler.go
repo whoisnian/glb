@@ -58,7 +58,7 @@ func (h *JsonHandler) WithAttrs(attrs []slog.Attr) Handler {
 
 	h2 := h.clone()
 	for _, a := range attrs {
-		appendJsonAttr(&h2.preformatted, a, h.addSep)
+		appendJsonAttr(&h2.preformatted, a, h.addSep, h.Options.colorful)
 		h.addSep = true
 	}
 	return h2
@@ -124,7 +124,7 @@ func (h *JsonHandler) Handle(_ context.Context, r slog.Record) error {
 	if r.NumAttrs() > 0 {
 		addSep := h.addSep
 		r.Attrs(func(a slog.Attr) bool {
-			appendJsonAttr(buf, a, addSep)
+			appendJsonAttr(buf, a, addSep, h.Options.colorful)
 			addSep = true
 			return true
 		})
@@ -140,7 +140,7 @@ func (h *JsonHandler) Handle(_ context.Context, r slog.Record) error {
 	return err
 }
 
-func appendJsonAttr(buf *[]byte, a slog.Attr, addSep bool) {
+func appendJsonAttr(buf *[]byte, a slog.Attr, addSep bool, colorful bool) {
 	if addSep {
 		*buf = append(*buf, ',')
 		addSep = false
@@ -154,7 +154,7 @@ func appendJsonAttr(buf *[]byte, a slog.Attr, addSep bool) {
 			*buf = append(*buf, '"', ':', '{')
 		}
 		for _, aa := range a.Value.Group() {
-			appendJsonAttr(buf, aa, addSep)
+			appendJsonAttr(buf, aa, addSep, colorful)
 			addSep = true
 		}
 		if len(a.Key) > 0 {
@@ -166,10 +166,10 @@ func appendJsonAttr(buf *[]byte, a slog.Attr, addSep bool) {
 	*buf = append(*buf, '"')
 	appendJsonString(buf, a.Key)
 	*buf = append(*buf, '"', ':')
-	appendJsonValue(buf, a.Value)
+	appendJsonValue(buf, a.Value, colorful)
 }
 
-func appendJsonValue(buf *[]byte, v slog.Value) {
+func appendJsonValue(buf *[]byte, v slog.Value, colorful bool) {
 	switch v.Kind() {
 	case slog.KindString:
 		*buf = append(*buf, '"')
@@ -199,12 +199,12 @@ func appendJsonValue(buf *[]byte, v slog.Value) {
 			*buf = append(*buf, '"')
 		} else if vv, ok := va.(AnsiString); ok {
 			*buf = append(*buf, '"')
-			if vv.Prefix == "" {
-				appendJsonString(buf, vv.Value)
-			} else {
+			if colorful && vv.Prefix != "" {
 				*buf = append(*buf, vv.Prefix...)
 				appendJsonString(buf, vv.Value)
 				*buf = append(*buf, ansi.Reset...)
+			} else {
+				appendJsonString(buf, vv.Value)
 			}
 			*buf = append(*buf, '"')
 		} else {

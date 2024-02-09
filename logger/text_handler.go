@@ -76,7 +76,7 @@ func (h *TextHandler) WithAttrs(attrs []slog.Attr) Handler {
 	h2 := h.clone()
 	for _, a := range attrs {
 		prefix := h2.prefix()
-		appendTextAttr(&h2.preformatted, a, prefix)
+		appendTextAttr(&h2.preformatted, a, prefix, h.Options.colorful)
 		h2.freePrefix(prefix)
 	}
 	return h2
@@ -133,7 +133,7 @@ func (h *TextHandler) Handle(_ context.Context, r slog.Record) error {
 	if r.NumAttrs() > 0 {
 		r.Attrs(func(a slog.Attr) bool {
 			prefix := h.prefix()
-			appendTextAttr(buf, a, prefix)
+			appendTextAttr(buf, a, prefix, h.Options.colorful)
 			h.freePrefix(prefix)
 			return true
 		})
@@ -146,7 +146,7 @@ func (h *TextHandler) Handle(_ context.Context, r slog.Record) error {
 	return err
 }
 
-func appendTextAttr(buf *[]byte, a slog.Attr, prefix *[]byte) {
+func appendTextAttr(buf *[]byte, a slog.Attr, prefix *[]byte, colorful bool) {
 	a.Value = a.Value.Resolve()
 	if a.Value.Kind() == slog.KindGroup {
 		ori := len(*prefix)
@@ -158,7 +158,7 @@ func appendTextAttr(buf *[]byte, a slog.Attr, prefix *[]byte) {
 			if len(a.Key) > 0 {
 				*prefix = append(*prefix, a.Key...)
 			}
-			appendTextAttr(buf, aa, prefix)
+			appendTextAttr(buf, aa, prefix, colorful)
 		}
 		return
 	}
@@ -172,10 +172,10 @@ func appendTextAttr(buf *[]byte, a slog.Attr, prefix *[]byte) {
 		appendTextString(buf, a.Key)
 	}
 	*buf = append(*buf, '=')
-	appendTextValue(buf, a.Value)
+	appendTextValue(buf, a.Value, colorful)
 }
 
-func appendTextValue(buf *[]byte, v slog.Value) {
+func appendTextValue(buf *[]byte, v slog.Value, colorful bool) {
 	switch v.Kind() {
 	case slog.KindString:
 		appendTextString(buf, v.String())
@@ -200,12 +200,12 @@ func appendTextValue(buf *[]byte, v slog.Value) {
 				appendTextString(buf, string(data))
 			}
 		} else if vv, ok := va.(AnsiString); ok {
-			if vv.Prefix == "" {
-				appendTextString(buf, vv.Value)
-			} else {
+			if colorful && vv.Prefix != "" {
 				*buf = append(*buf, vv.Prefix...)
 				appendTextString(buf, vv.Value)
 				*buf = append(*buf, ansi.Reset...)
+			} else {
+				appendTextString(buf, vv.Value)
 			}
 		} else if vv, ok := va.(error); ok {
 			appendTextString(buf, vv.Error())
