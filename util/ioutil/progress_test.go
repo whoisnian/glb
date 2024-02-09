@@ -2,8 +2,7 @@ package ioutil_test
 
 import (
 	"bytes"
-	"io"
-	"math/rand"
+	"math/rand/v2"
 	"testing"
 	"time"
 
@@ -55,10 +54,13 @@ func TestProgressWriter_WriteString(t *testing.T) {
 }
 
 func TestProgressWriter_Status(t *testing.T) {
-	var SEED, SIZE int64 = time.Now().Unix(), 32 * 1024 * 1024
-	t.Logf("Running tests with rand seed %v", SEED)
+	var SEED = uint64(time.Now().Unix())
+	t.Logf("Running tests with PCG seed (0,%v)", SEED)
+	rd := rand.New(rand.NewPCG(0, SEED))
 
-	rd := io.LimitReader(rand.New(rand.NewSource(SEED)), SIZE)
+	const SIZE = 32 * 1024 * 1024
+	buf := make([]byte, SIZE)
+	ioutil.ReadRand(rd, buf)
 	pw := ioutil.NewProgressWriter(&bytes.Buffer{})
 
 	if pw.Size() != 0 {
@@ -67,7 +69,7 @@ func TestProgressWriter_Status(t *testing.T) {
 
 	go func() {
 		defer pw.Close()
-		io.Copy(pw, rd)
+		pw.Write(buf)
 	}()
 
 	last := 0
@@ -77,7 +79,7 @@ func TestProgressWriter_Status(t *testing.T) {
 		}
 		last = n
 	}
-	if last != pw.Size() || last != int(SIZE) {
+	if last != pw.Size() || last != SIZE {
 		t.Errorf("Status() got %v in the end, want %v", last, SIZE)
 	}
 }

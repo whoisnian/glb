@@ -3,19 +3,20 @@ package logger
 import (
 	"crypto/md5"
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"testing"
 	"time"
+
+	"github.com/whoisnian/glb/util/ioutil"
 )
 
 func TestBufferPool(t *testing.T) {
-	var SEED = time.Now().Unix()
-	t.Logf("Running tests with rand seed %v", SEED)
-	rd := rand.New(rand.NewSource(SEED))
+	var SEED = uint64(time.Now().Unix())
+	t.Logf("Running tests with PCG seed (0,%v)", SEED)
+	rd := rand.New(rand.NewPCG(0, SEED))
 
 	var (
 		tests   = 1 << 10
-		err     error
 		size    int
 		lastSum [16]byte
 		lastCap = initBufferSize
@@ -31,11 +32,8 @@ func TestBufferPool(t *testing.T) {
 				t.Fatalf("md5(newBuffer) = %q, want %q", md5.Sum((*buf)[:size]), lastSum)
 			}
 		}
-		*buf = append(*buf, make([]byte, rd.Intn(maxBufferSize*1.5))...)
-		size, err = rd.Read(*buf)
-		if err != nil {
-			t.Fatalf("LimitReader.Read: %v", err)
-		}
+		*buf = append(*buf, make([]byte, rd.IntN(maxBufferSize*1.5))...)
+		size, _ = ioutil.ReadRand(rd, *buf)
 		lastSum = md5.Sum((*buf)[:size])
 		lastCap = cap(*buf)
 		freeBuffer(buf)
