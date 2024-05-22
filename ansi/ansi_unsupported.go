@@ -2,7 +2,7 @@
 
 package ansi
 
-// from https://github.com/golang/go/blob/e7fbd28a4dbf92721f040dfb2c877153333054d1/src/go/build/syslist.go
+// from https://github.com/golang/go/blob/adbfb672ba485630d75f8b5598228a63f4af08a4/src/go/build/syslist.go
 // ansi_windows.go
 // * windows
 // ansi_unix_bsd.go
@@ -25,6 +25,6 @@ package ansi
 // * nacl
 // * plan9
 // * wasip1
-func isSupported(fd uintptr) bool {
+func isSupported(_ uintptr) bool {
 	return false
 }

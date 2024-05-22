@@ -4,8 +4,8 @@ package ansi
 
 import "golang.org/x/sys/windows"
 
-// from https://github.com/golang/term/blob/f413282cd8dbb55102093d9f16ab3ba90f7b9b31/term_windows.go#L17
-// from https://github.com/fatih/color/blob/d5c210ca2a0ed2ce7d8e46320ef777d64f38c83a/color_windows.go#L9
+// from https://github.com/golang/term/blob/46c790f81f1f50148a57f7ddf0c637b84ff2f0e6/term_windows.go#L17
+// from https://github.com/fatih/color/blob/b6598b12a645b3159c1bce51b0e3fafc269510be/color_windows.go#L9
 // from https://learn.microsoft.com/en-us/windows/console/console-virtual-terminal-sequences
 func isSupported(fd uintptr) bool {
 	var mode, flag uint32
