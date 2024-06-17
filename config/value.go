@@ -2,93 +2,169 @@ package config
 
 import (
 	"encoding/base64"
+	"errors"
+	"reflect"
 	"strconv"
 	"time"
 )
 
-// bytesValue implements encoding.TextMarshaler and encoding.TextUnmarshaler. Usually used in flag.TextVar() function.
-type bytesValue []byte
-
-func (v *bytesValue) MarshalText() ([]byte, error) {
-	text := make([]byte, base64.StdEncoding.EncodedLen(len(*v)))
-	base64.StdEncoding.Encode(text, *v)
-	return text, nil
+// Value is the interface to the dynamic value stored in a flag.
+type Value interface {
+	String() string
+	Set(string) error
 }
 
-func (v *bytesValue) UnmarshalText(text []byte) error {
-	*v = make([]byte, base64.StdEncoding.DecodedLen(len(text)))
-	n, err := base64.StdEncoding.Decode(*v, text)
-	if err != nil {
-		return err
+func newFlagValue(v reflect.Value, defValue string) (value Value, err error) {
+	switch pv := v.Addr().Interface().(type) {
+	case *bool:
+		value = (*boolValue)(pv)
+	case *int:
+		value = (*intValue)(pv)
+	case *int64:
+		value = (*int64Value)(pv)
+	case *uint:
+		value = (*uintValue)(pv)
+	case *uint64:
+		value = (*uint64Value)(pv)
+	case *string:
+		value = (*stringValue)(pv)
+	case *float64:
+		value = (*float64Value)(pv)
+	case *time.Duration:
+		value = (*durationValue)(pv)
+	case *[]byte:
+		value = (*bytesValue)(pv)
+	default:
+		return nil, errors.New("config: unknown value type " + v.Type().Kind().String())
 	}
-	*v = (*v)[:n]
+	return value, value.Set(defValue)
+}
+
+// -- bool Value
+type boolValue bool
+
+func (b *boolValue) String() string { return strconv.FormatBool(bool(*b)) }
+
+func (b *boolValue) Set(s string) (err error) {
+	var v bool // default `false` if input is empty
+	if s != "" {
+		v, err = strconv.ParseBool(s)
+	}
+	*b = boolValue(v)
+	return err
+}
+
+func (b *boolValue) IsBoolFlag() bool { return true }
+
+type boolFlag interface {
+	Value
+	IsBoolFlag() bool
+}
+
+// -- int Value
+type intValue int
+
+func (i *intValue) String() string { return strconv.Itoa(int(*i)) }
+
+func (i *intValue) Set(s string) (err error) {
+	var v int64 // default `0` if input is empty
+	if s != "" {
+		v, err = strconv.ParseInt(s, 0, strconv.IntSize)
+	}
+	*i = intValue(v)
+	return err
+}
+
+// -- int64 Value
+type int64Value int64
+
+func (i *int64Value) String() string { return strconv.FormatInt(int64(*i), 10) }
+
+func (i *int64Value) Set(s string) (err error) {
+	var v int64 // default `0` if input is empty
+	if s != "" {
+		v, err = strconv.ParseInt(s, 0, 64)
+	}
+	*i = int64Value(v)
+	return err
+}
+
+// -- uint Value
+type uintValue uint
+
+func (i *uintValue) String() string { return strconv.FormatUint(uint64(*i), 10) }
+
+func (i *uintValue) Set(s string) (err error) {
+	var v uint64 // default `0` if input is empty
+	if s != "" {
+		v, err = strconv.ParseUint(s, 0, strconv.IntSize)
+	}
+	*i = uintValue(v)
+	return err
+}
+
+// -- uint64 Value
+type uint64Value uint64
+
+func (i *uint64Value) String() string { return strconv.FormatUint(uint64(*i), 10) }
+
+func (i *uint64Value) Set(s string) (err error) {
+	var v uint64 // default `0` if input is empty
+	if s != "" {
+		v, err = strconv.ParseUint(s, 0, 64)
+	}
+	*i = uint64Value(v)
+	return err
+}
+
+// -- string Value
+type stringValue string
+
+func (s *stringValue) String() string { return string(*s) }
+
+func (s *stringValue) Set(val string) error {
+	*s = stringValue(val)
 	return nil
 }
 
-// parseDefaultBool creates named return values and returns default bool value by naked return statement if input string is empty.
-func parseDefaultBool(s string) (b bool, err error) {
+// -- float64 Value
+type float64Value float64
+
+func (f *float64Value) String() string { return strconv.FormatFloat(float64(*f), 'g', -1, 64) }
+
+func (f *float64Value) Set(s string) (err error) {
+	var v float64 // default `0` if input is empty
 	if s != "" {
-		return strconv.ParseBool(s)
+		v, err = strconv.ParseFloat(s, 64)
 	}
-	return
+	*f = float64Value(v)
+	return err
 }
 
-// parseDefaultInt creates named return values and returns default int value by naked return statement if input string is empty.
-func parseDefaultInt(s string) (i int, err error) {
+// -- time.Duration Value
+type durationValue time.Duration
+
+func (d *durationValue) String() string { return (*time.Duration)(d).String() }
+
+func (d *durationValue) Set(s string) (err error) {
+	var v time.Duration // default `0` if input is empty
 	if s != "" {
-		v, err := strconv.ParseInt(s, 0, strconv.IntSize)
-		return int(v), err
+		v, err = time.ParseDuration(s)
 	}
-	return
+	*d = durationValue(v)
+	return err
 }
 
-// parseDefaultInt64 creates named return values and returns default int64 value by naked return statement if input string is empty.
-func parseDefaultInt64(s string) (i int64, err error) {
-	if s != "" {
-		return strconv.ParseInt(s, 0, 64)
-	}
-	return
-}
+// -- bytes Value
+type bytesValue []byte
 
-// parseDefaultUint creates named return values and returns default uint value by naked return statement if input string is empty.
-func parseDefaultUint(s string) (u uint, err error) {
-	if s != "" {
-		v, err := strconv.ParseUint(s, 0, strconv.IntSize)
-		return uint(v), err
-	}
-	return
-}
+func (b *bytesValue) String() string { return base64.StdEncoding.EncodeToString([]byte(*b)) }
 
-// parseDefaultUint64 creates named return values and returns default uint64 value by naked return statement if input string is empty.
-func parseDefaultUint64(s string) (u uint64, err error) {
+func (b *bytesValue) Set(s string) (err error) {
+	var v []byte // default `nil` if input is empty
 	if s != "" {
-		return strconv.ParseUint(s, 0, 64)
+		v, err = base64.StdEncoding.DecodeString(s)
 	}
-	return
-}
-
-// parseDefaultFloat64 creates named return values and returns default float64 value by naked return statement if input string is empty.
-func parseDefaultFloat64(s string) (f float64, err error) {
-	if s != "" {
-		return strconv.ParseFloat(s, 64)
-	}
-	return
-}
-
-// parseDefaultDuration creates named return values and returns default time.Duration value by naked return statement if input string is empty.
-func parseDefaultDuration(s string) (d time.Duration, err error) {
-	if s != "" {
-		return time.ParseDuration(s)
-	}
-	return
-}
-
-// parseDefaultBytesValue returns empty bytes slice as default bytesValue value if input string is empty.
-func parseDefaultBytesValue(s string) (b *bytesValue, err error) {
-	b = &bytesValue{}
-	if s != "" {
-		err = b.UnmarshalText([]byte(s))
-		return b, err
-	}
-	return
+	*b = bytesValue(v)
+	return err
 }
