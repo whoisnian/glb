@@ -1,87 +1,195 @@
-// Package config generates flag.FlagSet from structField tags and reads Flag.Value from cli, env, or configuration file.
+// Package config generates flags from StructField tags and reads values from cli, env, and configuration file.
 //
 // priority: cli > env > file > default
 //
-// Two structField tag formats:
+// Two StructField tag formats are supported. Extra separators will be treated as usage content.
 //
 //	`flag:"name,value,usage"`
 //	`flag:"|name|value|usage"`
 //
-// Nested structure is not supported. Type of structField can be:
-//   - *bool
-//   - *int
-//   - *int64
-//   - *uint
-//   - *uint64
-//   - *string
-//   - *float64
-//   - *time.Duration
-//   - *[]byte
+// If the tag is empty, the lowercase StructField name will be used. Type of StructField could be:
+//   - bool
+//   - int
+//   - int64
+//   - uint
+//   - uint64
+//   - string
+//   - float64
+//   - time.Duration
+//   - []byte
+//   - struct
 package config
 
 import (
 	"encoding/base64"
-	"encoding/json"
 	"errors"
-	"flag"
 	"os"
 	"reflect"
 	"strings"
-	"time"
 
 	"github.com/whoisnian/glb/util/fsutil"
 )
 
+const (
+	flagNameShowUsage  = "help"   // Show usage message and quit
+	flagNameConfigPath = "config" // Specify file path of custom configuration json
+)
+
+// FlagSet represents a set of defined flags. Flag names must be unique within a FlagSet.
 type FlagSet struct {
-	set       *flag.FlagSet
-	nameMap   map[string]string     // mapping from flag name to original struct field name
-	actualMap map[string]*flag.Flag // flags in the internal flagSet that have been set by cli, env, or custom configuration
+	ptr  any      // pointer to config struct
+	args []string // arguments after flags
 
-	configSource string
-	configB64Env string
-	envPrefix    string
+	flagList  []*Flag          // record flags order
+	flagMap   map[string]*Flag // lookup a flag by name
+	maxLength int              // flag name max length
 
-	initialized bool
-	structValue reflect.Value
+	parsed       bool
+	envKeyPrefix string
+	b64ConfigEnv string
+
+	// built-in flag values
+	valueShowUsage  boolValue
+	valueConfigPath stringValue
 }
 
-// NewFlagSet returns a new, empty flag set with the specified name and error handling property.
-func NewFlagSet(name string, errorHandling flag.ErrorHandling) *FlagSet {
-	f := &FlagSet{
-		set:          flag.NewFlagSet(name, errorHandling),
-		nameMap:      make(map[string]string),
-		actualMap:    make(map[string]*flag.Flag),
-		configB64Env: "CFG_CONFIG_B64",
-		envPrefix:    "CFG_",
+// Flag represents the state of a flag.
+type Flag struct {
+	Name     string // name as it appears on command line
+	Env      string // environment variable name
+	Usage    string // help message
+	Value    Value  // value as set
+	DefValue string // default value (as text); for usage message
+
+	ArgValue *string // command line argument value (as text, nil if not set); for argParse()
+	EnvValue *string // environment variable value (as text, nil if not set); for envParse()
+}
+
+// NewFlagSet parses struct exported fields and generates a new FlagSet.
+// Only accepts a pointer to struct as input argument.
+func NewFlagSet(pStruct any) (*FlagSet, error) {
+	pVal := reflect.ValueOf(pStruct)
+	if pVal.Kind() != reflect.Pointer {
+		return nil, errors.New("config: NewFlagSet() want pointer as input argument, but got " + pVal.Kind().String())
+	}
+	structValue := pVal.Elem()
+	if structValue.Kind() != reflect.Struct {
+		return nil, errors.New("config: NewFlagSet() want pointer to struct, but got pointer to " + structValue.Kind().String())
 	}
 
-	// cli usage:
-	//   -config=config.json
-	//   -config ./config.json
-	//   --config=~/config.json
-	//   --config /etc/demo/config.json
-	f.set.StringVar(&f.configSource, "config", "", "Specify file path of custom configuration json")
-	return f
+	f := &FlagSet{
+		ptr:  pStruct,
+		args: []string{},
+
+		flagList:  []*Flag{},
+		flagMap:   make(map[string]*Flag),
+		maxLength: 0,
+
+		parsed:       false,
+		envKeyPrefix: "CFG_",
+		b64ConfigEnv: "CFG_CONFIG_B64",
+	}
+	for _, flg := range []*Flag{
+		{Name: flagNameShowUsage, Usage: "Show usage message and quit", Value: &f.valueShowUsage},
+		{Name: flagNameConfigPath, Usage: "Specify file path of custom configuration json", Value: &f.valueConfigPath},
+	} {
+		f.flagList = append(f.flagList, flg)
+		f.flagMap[flg.Name] = flg
+		f.maxLength = max(f.maxLength, len(flg.Name))
+	}
+	return f, f.parseStructFields(structValue, "")
 }
 
-// LookupActual returns the Flag structure that have been set, returning nil if not set.
-func (f *FlagSet) LookupActual(name string) *flag.Flag {
-	return f.actualMap[name]
+// Type of StructField could be:
+//   - bool
+//   - int
+//   - int64
+//   - uint
+//   - uint64
+//   - string
+//   - float64
+//   - time.Duration
+//   - []byte
+//   - struct
+func (f *FlagSet) parseStructFields(structValue reflect.Value, group string) error {
+	structType := structValue.Type()
+	for i := 0; i < structType.NumField(); i++ {
+		field := structType.Field(i)
+		if !field.IsExported() {
+			continue
+		}
+
+		fieldValue := structValue.Field(i)
+		if field.Type.Kind() == reflect.Struct {
+			if err := f.parseStructFields(fieldValue, group+field.Name+"_"); err != nil {
+				return err
+			}
+			continue
+		}
+
+		name, defValue, usage := parseStructFieldTag(field)
+		if strings.HasPrefix(name, "-") {
+			return errors.New("config: flag name begins with -: " + name)
+		} else if strings.Contains(name, "=") {
+			return errors.New("config: flag name contains =: " + name)
+		} else if _, ok := f.flagMap[name]; ok {
+			return errors.New("config: flag name redefined: " + name)
+		}
+
+		value, err := newFlagValue(fieldValue, defValue)
+		if err != nil {
+			return err
+		}
+
+		flg := &Flag{
+			Name:     name,
+			Env:      strings.ToUpper(f.envKeyPrefix + group + field.Name),
+			Usage:    usage,
+			Value:    value,
+			DefValue: value.String(), // after value.Set(defValue)
+		}
+		f.flagList = append(f.flagList, flg)
+		f.flagMap[flg.Name] = flg
+		f.maxLength = max(f.maxLength, len(flg.Name))
+	}
+	return nil
 }
 
-// LookupFormal returns the Flag structure of the named flag, returning nil if none exists.
-func (f *FlagSet) LookupFormal(name string) *flag.Flag {
-	return f.set.Lookup(name)
+// Two StructField tag formats are supported. Extra separators will be treated as usage content.
+//
+//	`flag:"name,value,usage"`
+//	`flag:"|name|value|usage"`
+func parseStructFieldTag(field reflect.StructField) (name, value, usage string) {
+	name = field.Tag.Get("flag")
+	sep := byte(',')
+	if name != "" && name[0] == '|' {
+		name = name[1:]
+		sep = '|'
+	}
+
+	if pos := strings.IndexByte(name, sep); pos >= 0 {
+		value = name[pos+1:]
+		name = name[:pos]
+		if pos = strings.IndexByte(value, sep); pos >= 0 {
+			usage = value[pos+1:]
+			value = value[:pos]
+		}
+	}
+
+	if name == "" {
+		name = strings.ToLower(field.Name)
+	}
+	return name, value, usage
+}
+
+// Lookup returns the Flag structure of the named flag, returning nil if none exists.
+func (f *FlagSet) Lookup(name string) *Flag {
+	return f.flagMap[name]
 }
 
 // Args returns the non-flag command-line arguments, similarly to `flag.Args()`.
 func (f *FlagSet) Args() []string {
-	return f.set.Args()
-}
-
-// Initialized reports whether f.Init() has been called.
-func (f *FlagSet) Initialized() bool {
-	return f.initialized
+	return f.args
 }
 
 // FromCommandLine creates new flag set and parses os.Args for input struct argument.
@@ -89,32 +197,21 @@ func (f *FlagSet) Initialized() bool {
 // Example:
 //
 //	type Config struct {
-//	    ListenAddr string `flag:"l,0.0.0.0:80,Server listen addr"`
+//	    Debug      bool   `flag:"d,false,Enable debug output"`
 //	    Version    bool   `flag:"v,false,Show version and quit"`
+//	    ListenAddr string `flag:"l,0.0.0.0:80,Server listen addr"`
 //	}
 //
 //	func main() {
-//	    cfg := &Config{}
-//	    if err := config.FromCommandLine(cfg); err != nil {
+//	    var cfg Config
+//	    if _, err := config.FromCommandLine(&cfg); err != nil {
 //	        panic(err)
 //	    }
 //	    fmt.Printf("%+v", cfg)
 //	}
-func FromCommandLine(pStruct any) (err error) {
-	f := NewFlagSet(os.Args[0], flag.ExitOnError)
-	if err = f.Init(pStruct); err != nil {
-		return err
-	}
-	if err = f.Parse(os.Args[1:]); err != nil {
-		return err
-	}
-	return nil
-}
-
-// FromCommandLineWithArgs parses os.Args for input struct argument and returns the non-flag arguments.
-func FromCommandLineWithArgs(pStruct any) (args []string, err error) {
-	f := NewFlagSet(os.Args[0], flag.ExitOnError)
-	if err = f.Init(pStruct); err != nil {
+func FromCommandLine(pStruct any) ([]string, error) {
+	f, err := NewFlagSet(pStruct)
+	if err != nil {
 		return nil, err
 	}
 	if err = f.Parse(os.Args[1:]); err != nil {
@@ -123,201 +220,128 @@ func FromCommandLineWithArgs(pStruct any) (args []string, err error) {
 	return f.Args(), nil
 }
 
-// GenerateDefault fills the value of the pStruct pointing to using default values.
-func GenerateDefault(pStruct any) (err error) {
-	f := NewFlagSet("", flag.ContinueOnError)
-	if err = f.Init(pStruct); err != nil {
+// Parse parses flag definitions from command line, environment variable, and configuration file.
+// The command line argument list should not include the command name.
+func (f *FlagSet) Parse(arguments []string) (err error) {
+	if f.parsed {
+		return errors.New("config: Parse() must be called once")
+	}
+	f.parsed = true
+	f.args = arguments
+
+	if err = f.argParse(); err != nil {
 		return err
 	}
-	f.set.VisitAll(func(flg *flag.Flag) {
-		if err == nil {
-			err = flg.Value.Set(flg.DefValue)
+	if err = f.envParse(); err != nil {
+		return err
+	}
+
+	if flg, ok := f.flagMap[flagNameConfigPath]; ok && flg.ArgValue != nil {
+		if err = flg.Value.Set(*flg.ArgValue); err != nil {
+			return err
 		}
-	})
-	return err
+	}
+	if err = f.parseConfigJson(); err != nil {
+		return err
+	}
+
+	for _, flg := range f.flagList {
+		if flg.ArgValue != nil {
+			err = flg.Value.Set(*flg.ArgValue)
+		} else if flg.EnvValue != nil {
+			err = flg.Value.Set(*flg.EnvValue)
+		}
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-// Init parses struct exported fields as configuration items and adds items to the internal flagSet.
-// Only accept a pointer to struct as input argument.
-func (f *FlagSet) Init(pStruct any) error {
-	if f.initialized {
-		return errors.New("config: Init() should be called only once")
-	}
-	f.initialized = true
+// The following forms are permitted.
+//
+//	-config=config.json
+//	-config ./config.json
+//	--config=~/config.json
+//	--config /etc/demo/config.json
+func (f *FlagSet) argParse() error {
+	for len(f.args) > 0 {
+		name := f.args[0]
+		if len(name) < 2 || name[0] != '-' {
+			return nil
+		}
+		name = name[1:]
 
-	pVal := reflect.ValueOf(pStruct)
-	if pVal.Kind() != reflect.Pointer {
-		return errors.New("config: Init() want pointer as input argument, but got " + pVal.Kind().String())
-	}
-	f.structValue = pVal.Elem()
-	if f.structValue.Kind() != reflect.Struct {
-		return errors.New("config: Init() want pointer to struct, but got pointer to " + f.structValue.Kind().String())
-	}
+		if name[0] == '-' {
+			if len(name) == 2 {
+				f.args = f.args[1:]
+				return nil
+			}
+			name = name[1:]
+		}
+		if len(name) == 0 || name[0] == '-' || name[0] == '=' {
+			return errors.New("config: bad flag syntax: " + name)
+		}
 
-	vType := f.structValue.Type()
-	for i := 0; i < vType.NumField(); i++ {
-		sf := vType.Field(i)
-		if !sf.IsExported() {
+		f.args = f.args[1:]
+		hasValue := false
+		argValue := ""
+		for i := 1; i < len(name); i++ {
+			if name[i] == '=' {
+				argValue = name[i+1:]
+				name = name[0:i]
+				hasValue = true
+				break
+			}
+		}
+
+		flg, ok := f.flagMap[name]
+		if !ok {
+			return errors.New("config: flag provided but not defined: " + name)
+		}
+
+		if !hasValue {
+			if fv, ok := flg.Value.(boolFlag); ok && fv.IsBoolFlag() {
+				argValue = "true"
+			} else if len(f.args) > 0 {
+				argValue, f.args = f.args[0], f.args[1:]
+			} else {
+				return errors.New("config: flag needs an argument: " + name)
+			}
+		}
+		flg.ArgValue = &argValue
+	}
+	return nil
+}
+
+func (f *FlagSet) envParse() error {
+	for _, flg := range f.flagList {
+		if flg.Env == "" {
 			continue
 		}
-
-		tName, tValue, tUsage := parseStructFieldTag(sf)
-		f.nameMap[tName] = sf.Name
-		if err := f.addFieldToFlagSet(i, tName, tValue, tUsage); err != nil {
-			return err
+		// fmt.Println("LOOKUP " + flg.Name + " " + flg.Env)
+		if res, ok := os.LookupEnv(flg.Env); ok {
+			flg.EnvValue = &res
 		}
 	}
 	return nil
 }
 
-// Parse parses flag definitions from the argument list, which should not include the command name.
-// Must be called after f.Init().
-func (f *FlagSet) Parse(arguments []string) error {
-	if !f.initialized {
-		return errors.New("config: Parse() must be called after f.Init()")
-	}
-	f.set.Parse(arguments)
-
-	configJsonMap := make(map[string]json.RawMessage)
-	err := f.unmarshalConfigJson(&configJsonMap)
-	if err != nil {
-		return err
-	}
-
-	f.set.Visit(func(flg *flag.Flag) { f.actualMap[flg.Name] = flg })
-	f.set.VisitAll(func(flg *flag.Flag) {
-		if f.actualMap[flg.Name] != nil {
-			return // flag has been set by cli
-		}
-
-		if res, ok := os.LookupEnv(f.envPrefix + strings.ToUpper(f.nameMap[flg.Name])); ok {
-			flg.Value.Set(res)
-			f.actualMap[flg.Name] = flg
-			return // flag has been set by env
-		}
-
-		if res, ok := configJsonMap[f.nameMap[flg.Name]]; ok {
-			json.Unmarshal(res, f.structValue.FieldByName(f.nameMap[flg.Name]).Addr().Interface())
-			f.actualMap[flg.Name] = flg
-			return // flag has been set by custom configuration
-		}
-	})
-	return nil
-}
-
-// tag format:
-//
-//	`flag:"name,value,usage"`
-//	`flag:"|name|value|usage"`
-func parseStructFieldTag(sf reflect.StructField) (name, value, usage string) {
-	name = sf.Tag.Get("flag")
-
-	var sep byte = ','
-	if name != "" && name[0] == '|' {
-		name = name[1:]
-		sep = '|'
-	}
-
-	if posN := strings.IndexByte(name, sep); posN >= 0 {
-		value = name[posN+1:]
-		name = name[:posN]
-		if posV := strings.IndexByte(value, sep); posV >= 0 {
-			usage = value[posV+1:]
-			value = value[:posV]
-		}
-	}
-	if name == "" {
-		name = strings.ToLower(sf.Name)
-	}
-	return name, value, usage
-}
-
-// Type of variable can be:
-//   - *bool
-//   - *int
-//   - *int64
-//   - *uint
-//   - *uint64
-//   - *string
-//   - *float64
-//   - *time.Duration
-//   - *[]byte
-func (f *FlagSet) addFieldToFlagSet(i int, name string, defValue string, usage string) error {
-	switch pVar := f.structValue.Field(i).Addr().Interface().(type) {
-	case *bool:
-		value, err := parseDefaultBool(defValue)
-		if err != nil {
+func (f *FlagSet) parseConfigJson() (err error) {
+	var jsonData []byte
+	if fPath := f.valueConfigPath.String(); fPath != "" {
+		if fPath, err = fsutil.ExpandHomeDir(fPath); err != nil {
 			return err
 		}
-		f.set.BoolVar(pVar, name, value, usage)
-	case *int:
-		value, err := parseDefaultInt(defValue)
-		if err != nil {
+		if jsonData, err = os.ReadFile(fPath); err != nil {
 			return err
 		}
-		f.set.IntVar(pVar, name, value, usage)
-	case *int64:
-		value, err := parseDefaultInt64(defValue)
-		if err != nil {
-			return err
-		}
-		f.set.Int64Var(pVar, name, value, usage)
-	case *uint:
-		value, err := parseDefaultUint(defValue)
-		if err != nil {
-			return err
-		}
-		f.set.UintVar(pVar, name, value, usage)
-	case *uint64:
-		value, err := parseDefaultUint64(defValue)
-		if err != nil {
-			return err
-		}
-		f.set.Uint64Var(pVar, name, value, usage)
-	case *string:
-		f.set.StringVar(pVar, name, defValue, usage)
-	case *float64:
-		value, err := parseDefaultFloat64(defValue)
-		if err != nil {
-			return err
-		}
-		f.set.Float64Var(pVar, name, value, usage)
-	case *time.Duration:
-		value, err := parseDefaultDuration(defValue)
-		if err != nil {
-			return err
-		}
-		f.set.DurationVar(pVar, name, value, usage)
-	case *[]byte:
-		value, err := parseDefaultBytesValue(defValue)
-		if err != nil {
-			return err
-		}
-		f.set.TextVar((*bytesValue)(pVar), name, value, usage)
-	default:
-		return errors.New("config: unknown var type " + reflect.TypeOf(pVar).String())
-	}
-	return nil
-}
-
-func (f *FlagSet) unmarshalConfigJson(configJsonMap *map[string]json.RawMessage) (err error) {
-	var data []byte
-	if f.configSource != "" {
-		fPath, err := fsutil.ExpandHomeDir(f.configSource)
-		if err != nil {
-			return err
-		}
-		data, err = os.ReadFile(fPath)
-		if err != nil {
-			return err
-		}
-	} else if res, ok := os.LookupEnv(f.configB64Env); ok {
-		data, err = base64.StdEncoding.DecodeString(res)
-		if err != nil {
+	} else if str, ok := os.LookupEnv(f.b64ConfigEnv); ok {
+		if jsonData, err = base64.StdEncoding.DecodeString(str); err != nil {
 			return err
 		}
 	} else {
 		return nil
 	}
-	return json.Unmarshal(data, &configJsonMap)
+	return JsonUnmarshal(jsonData, f.ptr)
 }

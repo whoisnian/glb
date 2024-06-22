@@ -3,7 +3,6 @@ package config_test
 import (
 	"encoding/base64"
 	"encoding/json"
-	"flag"
 	"os"
 	"reflect"
 	"testing"
@@ -40,18 +39,18 @@ var tagFieldResults = [][]string{
 	{"t9", "", "This is T9"},
 }
 
-func TestInit_ParseTagField(t *testing.T) {
-	f := config.NewFlagSet("test", flag.ContinueOnError)
-	if err := f.Init(&TagField{}); err != nil {
-		t.Fatalf("f.Init() error: %v", err)
+func TestNewFlagSet_ParseTagField(t *testing.T) {
+	f, err := config.NewFlagSet(&TagField{})
+	if err != nil {
+		t.Fatalf("config.NewFlagSet() error: %v", err)
 	}
 	for _, result := range tagFieldResults {
-		flg := f.LookupFormal(result[0])
+		flg := f.Lookup(result[0])
 		if flg == nil {
-			t.Fatalf("f.LookupFormal(%q) = nil, want *flag.Flag", result[0])
+			t.Fatalf("f.Lookup(%q) = nil, want *flag.Flag", result[0])
 		}
 		if flg.Name != result[0] || flg.DefValue != result[1] || flg.Usage != result[2] {
-			t.Fatalf("f.LookupFormal(%q) = %q, want %q", result[0], []string{flg.Name, flg.DefValue, flg.Usage}, result)
+			t.Fatalf("f.Lookup(%q) = %q, want %q", result[0], []string{flg.Name, flg.DefValue, flg.Usage}, result)
 		}
 	}
 }
@@ -81,50 +80,56 @@ var tagValueResults = [][]string{
 	{"bytes", "d2hvaXNuaWFu", "Private key (base64)"},
 }
 
-func TestInit_ParseTagValue(t *testing.T) {
-	f := config.NewFlagSet("test", flag.ContinueOnError)
-	if err := f.Init(&TagValue{}); err != nil {
-		t.Fatalf("f.Init() error: %v", err)
+func TestNewFlagSet_ParseTagValue(t *testing.T) {
+	f, err := config.NewFlagSet(&TagValue{})
+	if err != nil {
+		t.Fatalf("config.NewFlagSet() error: %v", err)
 	}
 	for _, result := range tagValueResults {
-		flg := f.LookupFormal(result[0])
+		flg := f.Lookup(result[0])
 		if flg == nil {
-			t.Fatalf("f.LookupFormal(%q) = nil, want *flag.Flag", result[0])
+			t.Fatalf("f.Lookup(%q) = nil, want *flag.Flag", result[0])
 		}
 		if flg.Name != result[0] || flg.DefValue != result[1] || flg.Usage != result[2] {
-			t.Fatalf("f.LookupFormal(%q) = %q, want %q", result[0], []string{flg.Name, flg.DefValue, flg.Usage}, result)
+			t.Fatalf("f.Lookup(%q) = %q, want %q", result[0], []string{flg.Name, flg.DefValue, flg.Usage}, result)
 		}
 	}
 }
 
-func TestInit_DuplicatedCall(t *testing.T) {
-	f := config.NewFlagSet("test", flag.ContinueOnError)
-	if f.Initialized() {
-		t.Fatal("f.Initialized() = true, want false")
+func TestNewFlagSet_FillDefaultValue(t *testing.T) {
+	actual := TagValue{}
+	want := TagValue{
+		Bool:     true,
+		Int:      0,
+		Int64:    1,
+		Uint:     2,
+		Uint64:   3,
+		String:   ":80",
+		Float64:  0.6,
+		Duration: time.Second * 10,
+		Bytes:    []byte("whoisnian"),
 	}
-	if err := f.Init(&TagValue{}); err != nil {
-		t.Fatalf("f.Init() error: %v", err)
+	_, err := config.NewFlagSet(&actual)
+	if err != nil {
+		t.Fatalf("config.NewFlagSet() error: %v", err)
 	}
-	if !f.Initialized() {
-		t.Fatal("f.Initialized() = false, want true")
-	}
-	if err := f.Init(&TagValue{}); err == nil || err.Error() != "config: Init() should be called only once" {
-		t.Fatalf("f.Init() = %q, want 'called only once' error", err)
+	if !reflect.DeepEqual(actual, want) {
+		t.Fatalf("config.NewFlagSet() result:\n  get  %+v\n  want %+v", actual, want)
 	}
 }
 
-func TestInit_TypeError(t *testing.T) {
-	err := config.NewFlagSet("test", flag.ContinueOnError).Init([]int{1, 2, 3})
-	if err == nil || err.Error() != "config: Init() want pointer as input argument, but got slice" {
-		t.Fatalf("f.Init() = %q, want 'pointer as input argument' error", err)
+func TestNewFlagSet_TypeError(t *testing.T) {
+	_, err := config.NewFlagSet([]int{1, 2, 3})
+	if err == nil || err.Error() != "config: NewFlagSet() want pointer as input argument, but got slice" {
+		t.Fatalf("config.NewFlagSet() = %q, want 'pointer as input argument' error", err)
 	}
-	err = config.NewFlagSet("test", flag.ContinueOnError).Init(&[]int{1, 2, 3})
-	if err == nil || err.Error() != "config: Init() want pointer to struct, but got pointer to slice" {
-		t.Fatalf("f.Init() = %q, want 'pointer to struct' error", err)
+	_, err = config.NewFlagSet(&[]int{1, 2, 3})
+	if err == nil || err.Error() != "config: NewFlagSet() want pointer to struct, but got pointer to slice" {
+		t.Fatalf("config.NewFlagSet() = %q, want 'pointer to struct' error", err)
 	}
-	err = config.NewFlagSet("test", flag.ContinueOnError).Init(&struct{ f1, F2 float32 }{})
-	if err == nil || err.Error() != "config: unknown var type *float32" {
-		t.Fatalf("f.Init() = %q, want 'unknown var type' error", err)
+	_, err = config.NewFlagSet(&struct{ f1, F2 float32 }{})
+	if err == nil || err.Error() != "config: unknown value type float32" {
+		t.Fatalf("config.NewFlagSet() = %q, want 'unknown value type float32' error", err)
 	}
 }
 
@@ -148,9 +153,9 @@ func TestParse_Cli(t *testing.T) {
 		Duration: time.Second * 10, // default flag value
 		Bytes:    []byte("_nian_"),
 	}
-	f := config.NewFlagSet("test", flag.ContinueOnError)
-	if err := f.Init(&actual); err != nil {
-		t.Fatalf("f.Init() error: %v", err)
+	f, err := config.NewFlagSet(&actual)
+	if err != nil {
+		t.Fatalf("config.NewFlagSet() error: %v", err)
 	}
 	if err := f.Parse(arguments); err != nil {
 		t.Fatalf("f.Parse() error: %v", err)
@@ -174,9 +179,9 @@ func TestParse_Env(t *testing.T) {
 		Duration: time.Minute * 5,
 		Bytes:    []byte("whoisnian"), // default flag value
 	}
-	f := config.NewFlagSet("test", flag.ContinueOnError)
-	if err := f.Init(&actual); err != nil {
-		t.Fatalf("f.Init() error: %v", err)
+	f, err := config.NewFlagSet(&actual)
+	if err != nil {
+		t.Fatalf("config.NewFlagSet() error: %v", err)
 	}
 
 	os.Setenv("CFG_BOOL", "false")
@@ -200,37 +205,12 @@ func TestParse_Env(t *testing.T) {
 }
 
 func TestParse_Error(t *testing.T) {
-	f := config.NewFlagSet("test", flag.ContinueOnError)
-	if err := f.Parse([]string{}); err == nil || err.Error() != "config: Parse() must be called after f.Init()" {
-		t.Fatalf("f.Parse() = %q, want 'must be called after' error", err)
-	}
-	if err := f.Init(&TagValue{}); err != nil {
-		t.Fatalf("f.Init() error: %v", err)
+	f, err := config.NewFlagSet(&TagValue{})
+	if err != nil {
+		t.Fatalf("config.NewFlagSet() error: %v", err)
 	}
 	if err := f.Parse([]string{}); err != nil {
 		t.Fatalf("f.Parse() error: %v", err)
-	}
-}
-
-func TestLookupActual(t *testing.T) {
-	f := config.NewFlagSet("test", flag.ContinueOnError)
-	if err := f.Init(&TagValue{}); err != nil {
-		t.Fatalf("f.Init() error: %v", err)
-	}
-	if err := f.Parse([]string{"-int=10", "-uint=20"}); err != nil {
-		t.Fatalf("f.Parse() error: %v", err)
-	}
-	if res := f.LookupActual("bool"); res != nil {
-		t.Fatalf("f.LookupActual('bool') = %q, want nil", res)
-	}
-	if res := f.LookupActual("bytes"); res != nil {
-		t.Fatalf("f.LookupActual('bytes') = %q, want nil", res)
-	}
-	if res := f.LookupActual("int"); res == nil || res.Value.String() != "10" {
-		t.Fatalf("f.LookupActual('int') = %q, want 10", res.Value)
-	}
-	if res := f.LookupActual("uint"); res == nil || res.Value.String() != "20" {
-		t.Fatalf("f.LookupActual('uint') = %q, want 20", res.Value)
 	}
 }
 
@@ -249,9 +229,9 @@ func TestArgs(t *testing.T) {
 		{"arg_1", "-int=10", "arg_3"},
 	}}
 	for _, tt := range tests {
-		f := config.NewFlagSet("test", flag.ContinueOnError)
-		if err := f.Init(&TagValue{}); err != nil {
-			t.Fatalf("f.Init() error: %v", err)
+		f, err := config.NewFlagSet(&TagValue{})
+		if err != nil {
+			t.Fatalf("config.NewFlagSet() error: %v", err)
 		}
 		if err := f.Parse(tt[0]); err != nil {
 			t.Fatalf("f.Parse() error: %v", err)
@@ -286,9 +266,9 @@ func TestConfigJson_File(t *testing.T) {
 	fi.Close()
 	defer os.Remove(fi.Name())
 
-	f := config.NewFlagSet("test", flag.ContinueOnError)
-	if err := f.Init(&actual); err != nil {
-		t.Fatalf("f.Init() error: %v", err)
+	f, err := config.NewFlagSet(&actual)
+	if err != nil {
+		t.Fatalf("config.NewFlagSet() error: %v", err)
 	}
 	if err := f.Parse([]string{"-config", fi.Name()}); err != nil {
 		t.Fatalf("f.Parse() error: %v", err)
@@ -318,9 +298,9 @@ func TestConfigJson_Env(t *testing.T) {
 	}
 	os.Setenv("CFG_CONFIG_B64", base64.RawStdEncoding.EncodeToString(data))
 
-	f := config.NewFlagSet("test", flag.ContinueOnError)
-	if err := f.Init(&actual); err != nil {
-		t.Fatalf("f.Init() error: %v", err)
+	f, err := config.NewFlagSet(&actual)
+	if err != nil {
+		t.Fatalf("config.NewFlagSet() error: %v", err)
 	}
 	if err := f.Parse(nil); err != nil {
 		t.Fatalf("f.Parse() error: %v", err)
@@ -355,9 +335,9 @@ func TestValuePriority(t *testing.T) {
 	fi.Close()
 	defer os.Remove(fi.Name())
 
-	f := config.NewFlagSet("test", flag.ContinueOnError)
-	if err := f.Init(&actual); err != nil {
-		t.Fatalf("f.Init() error: %v", err)
+	f, err := config.NewFlagSet(&actual)
+	if err != nil {
+		t.Fatalf("config.NewFlagSet() error: %v", err)
 	}
 
 	os.Setenv("CFG_INT", "11")
@@ -372,26 +352,4 @@ func TestValuePriority(t *testing.T) {
 
 	os.Unsetenv("CFG_INT")
 	os.Unsetenv("CFG_INT64")
-}
-
-func TestGenerateExample(t *testing.T) {
-	actual := TagValue{}
-	want := TagValue{
-		Bool:     true,
-		Int:      0,
-		Int64:    1,
-		Uint:     2,
-		Uint64:   3,
-		String:   ":80",
-		Float64:  0.6,
-		Duration: time.Second * 10,
-		Bytes:    []byte("whoisnian"),
-	}
-	err := config.GenerateDefault(&actual)
-	if err != nil {
-		t.Fatalf("config.GenerateExample() error: %v", err)
-	}
-	if !reflect.DeepEqual(actual, want) {
-		t.Fatalf("config.GenerateExample() result:\n  get  %+v\n  want %+v", actual, want)
-	}
 }
