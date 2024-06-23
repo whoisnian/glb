@@ -21,10 +21,13 @@
 package config
 
 import (
+	"bytes"
 	"encoding/base64"
 	"errors"
+	"io"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/whoisnian/glb/util/fsutil"
@@ -57,7 +60,7 @@ type FlagSet struct {
 type Flag struct {
 	Name     string // name as it appears on command line
 	Env      string // environment variable name
-	Usage    string // help message
+	Usage    string // usage message
 	Value    Value  // value as set
 	DefValue string // default value (as text); for usage message
 
@@ -90,8 +93,8 @@ func NewFlagSet(pStruct any) (*FlagSet, error) {
 		b64ConfigEnv: "CFG_CONFIG_B64",
 	}
 	for _, flg := range []*Flag{
-		{Name: flagNameShowUsage, Usage: "Show usage message and quit", Value: &f.valueShowUsage},
-		{Name: flagNameConfigPath, Usage: "Specify file path of custom configuration json", Value: &f.valueConfigPath},
+		{Name: flagNameShowUsage, Usage: "Show usage message and quit", Value: &f.valueShowUsage, DefValue: "false"},
+		{Name: flagNameConfigPath, Usage: "Specify file path of custom configuration json", Value: &f.valueConfigPath, DefValue: ""},
 	} {
 		f.flagList = append(f.flagList, flg)
 		f.flagMap[flg.Name] = flg
@@ -187,9 +190,14 @@ func (f *FlagSet) Lookup(name string) *Flag {
 	return f.flagMap[name]
 }
 
-// Args returns the non-flag command-line arguments, similarly to `flag.Args()`.
+// Args returns the non-flag command-line arguments.
 func (f *FlagSet) Args() []string {
 	return f.args
+}
+
+// ShowUsage reports the showUsage flag value after `FlagSet.Parse()`.
+func (f *FlagSet) ShowUsage() bool {
+	return bool(f.valueShowUsage)
 }
 
 // FromCommandLine creates new flag set and parses os.Args for input struct argument.
@@ -216,6 +224,10 @@ func FromCommandLine(pStruct any) ([]string, error) {
 	}
 	if err = f.Parse(os.Args[1:]); err != nil {
 		return nil, err
+	}
+	if f.ShowUsage() {
+		f.PrintUsage(os.Stderr)
+		os.Exit(0)
 	}
 	return f.Args(), nil
 }
@@ -344,4 +356,39 @@ func (f *FlagSet) parseConfigJson() (err error) {
 		return nil
 	}
 	return JsonUnmarshal(jsonData, f.ptr)
+}
+
+func (f *FlagSet) PrintUsage(output io.Writer) {
+	var (
+		buf = &bytes.Buffer{}
+		pad = bytes.Repeat([]byte{' '}, 64)
+
+		nameLen = min(len(pad), f.maxLength)
+		typeLen = 8 // len("duration") == 8
+	)
+	for _, flg := range f.flagList {
+		buf.Reset()
+
+		buf.WriteString("  -")
+		buf.WriteString(flg.Name)
+		buf.Write(pad[:max(nameLen-len(flg.Name), 0)])
+		buf.WriteByte(' ')
+
+		buf.WriteString(flg.Value.Type())
+		buf.Write(pad[:max(typeLen-len(flg.Value.Type()), 0)])
+		buf.WriteByte(' ')
+
+		buf.WriteString(strings.ReplaceAll(flg.Usage, "\n", "\n"+strings.Repeat(" ", 3+nameLen+1+typeLen+1)))
+		if !flg.Value.IsZero() {
+			buf.WriteString(" (default ")
+			if _, ok := flg.Value.(*stringValue); ok {
+				buf.WriteString(strconv.Quote(flg.DefValue))
+			} else {
+				buf.WriteString(flg.DefValue)
+			}
+			buf.WriteString(")")
+		}
+		buf.WriteByte('\n')
+		output.Write(buf.Bytes())
+	}
 }
