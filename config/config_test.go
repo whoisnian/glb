@@ -1,6 +1,7 @@
 package config_test
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"os"
@@ -18,11 +19,13 @@ type TagField struct {
 	T3 int `flag:",33,"`
 	T4 int `flag:",,This is T4"`
 
-	T5 string `flag:"|t-5"`
-	T6 string `flag:"|t-6|abc"`
-	T7 string `flag:"|t-7|a,b,c|This is T7"`
-	T8 string `flag:"||def|"`
-	T9 string `flag:"|||This is T9"`
+	NT struct {
+		T5 string `flag:"|t-5"`
+		T6 string `flag:"|t-6|abc"`
+		T7 string `flag:"|t-7|a,b,c|This is T7"`
+		T8 string `flag:"||def|"`
+		T9 string `flag:"|||This is T9"`
+	}
 }
 
 var tagFieldResults = [][]string{
@@ -80,6 +83,19 @@ var tagValueResults = [][]string{
 	{"bytes", "d2hvaXNuaWFu", "Private key (base64)"},
 }
 
+var tagValueUsage = `  -help     bool     Show usage message and quit (default false)
+  -config   string   Specify file path of custom configuration json
+  -bool     bool     Enable feature xx (default true)
+  -int      int      Count of xx0
+  -int64    int64    Count of xx1 (default 1)
+  -uint     uint     Count of xx2 (default 2)
+  -uint64   uint64   Count of xx3 (default 3)
+  -string   string   Listen addr (default ":80")
+  -float64  float64  Threshold of xx (default 0.6)
+  -duration duration Heartbeat interval (default 10s)
+  -bytes    bytes    Private key (base64) (default d2hvaXNuaWFu)
+`
+
 func TestNewFlagSet_ParseTagValue(t *testing.T) {
 	f, err := config.NewFlagSet(&TagValue{})
 	if err != nil {
@@ -130,6 +146,45 @@ func TestNewFlagSet_TypeError(t *testing.T) {
 	_, err = config.NewFlagSet(&struct{ f1, F2 float32 }{})
 	if err == nil || err.Error() != "config: unknown value type float32" {
 		t.Fatalf("config.NewFlagSet() = %q, want 'unknown value type float32' error", err)
+	}
+}
+
+func TestNewFlagSet_FlagNameError(t *testing.T) {
+	_, err := config.NewFlagSet(&struct {
+		T int `flag:"-t"`
+	}{})
+	if err == nil || err.Error() != "config: flag name begins with -: -t" {
+		t.Fatalf("config.NewFlagSet() = %q, want 'flag name begins with -' error", err)
+	}
+	_, err = config.NewFlagSet(&struct {
+		T int `flag:"t="`
+	}{})
+	if err == nil || err.Error() != "config: flag name contains =: t=" {
+		t.Fatalf("config.NewFlagSet() = %q, want 'flag name contains =' error", err)
+	}
+	_, err = config.NewFlagSet(&struct {
+		T  int `flag:"tt"`
+		NT struct {
+			T int `flag:"tt"`
+		}
+	}{})
+	if err == nil || err.Error() != "config: flag name redefined: tt" {
+		t.Fatalf("config.NewFlagSet() = %q, want 'flag name redefined' error", err)
+	}
+}
+
+func TestFromCommandLine(t *testing.T) {
+	oldArgs := os.Args
+	defer func() { os.Args = oldArgs }()
+	os.Args = []string{"cmd", "--", "arg1", "arg2"}
+
+	args, err := config.FromCommandLine(&struct{}{})
+	if err != nil {
+		t.Fatalf("config.FromCommandLine() error: %v", err)
+	}
+	want := []string{"arg1", "arg2"}
+	if !reflect.DeepEqual(args, want) {
+		t.Fatalf("config.FromCommandLine() result:\n  get  %+v\n  want %+v", args, want)
 	}
 }
 
@@ -211,6 +266,9 @@ func TestParse_Error(t *testing.T) {
 	}
 	if err := f.Parse([]string{}); err != nil {
 		t.Fatalf("f.Parse() error: %v", err)
+	}
+	if err := f.Parse([]string{}); err == nil || err.Error() != "config: Parse() must be called once" {
+		t.Fatalf("f.Parse() = %q, want 'must be called once' error", err)
 	}
 }
 
@@ -352,4 +410,22 @@ func TestValuePriority(t *testing.T) {
 
 	os.Unsetenv("CFG_INT")
 	os.Unsetenv("CFG_INT64")
+}
+
+func TestPrintUsage(t *testing.T) {
+	f, err := config.NewFlagSet(&TagValue{})
+	if err != nil {
+		t.Fatalf("config.NewFlagSet() error: %v", err)
+	}
+	if err := f.Parse([]string{"-help"}); err != nil {
+		t.Fatalf("f.Parse() error: %v", err)
+	}
+	if !f.ShowUsage() {
+		t.Fatalf("f.ShowUsage() = %v, want true", f.ShowUsage())
+	}
+	out := &bytes.Buffer{}
+	f.PrintUsage(out)
+	if out.String() != tagValueUsage {
+		t.Fatalf("f.PrintUsage() result:\nget:\n%swant:\n%s", out.String(), tagValueUsage)
+	}
 }
