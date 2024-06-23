@@ -10,7 +10,9 @@ import (
 
 // Value is the interface to the dynamic value stored in a flag.
 type Value interface {
+	Type() string
 	String() string
+	IsZero() bool
 	Set(string) error
 }
 
@@ -43,8 +45,9 @@ func newFlagValue(v reflect.Value, defValue string) (value Value, err error) {
 // -- bool Value
 type boolValue bool
 
+func (b *boolValue) Type() string   { return "bool" }
 func (b *boolValue) String() string { return strconv.FormatBool(bool(*b)) }
-
+func (b *boolValue) IsZero() bool   { return !bool(*b) }
 func (b *boolValue) Set(s string) (err error) {
 	var v bool // default `false` if input is empty
 	if s != "" {
@@ -64,8 +67,9 @@ type boolFlag interface {
 // -- int Value
 type intValue int
 
+func (i *intValue) Type() string   { return "int" }
 func (i *intValue) String() string { return strconv.Itoa(int(*i)) }
-
+func (i *intValue) IsZero() bool   { return *i == 0 }
 func (i *intValue) Set(s string) (err error) {
 	var v int64 // default `0` if input is empty
 	if s != "" {
@@ -78,8 +82,9 @@ func (i *intValue) Set(s string) (err error) {
 // -- int64 Value
 type int64Value int64
 
+func (i *int64Value) Type() string   { return "int64" }
 func (i *int64Value) String() string { return strconv.FormatInt(int64(*i), 10) }
-
+func (i *int64Value) IsZero() bool   { return *i == 0 }
 func (i *int64Value) Set(s string) (err error) {
 	var v int64 // default `0` if input is empty
 	if s != "" {
@@ -92,8 +97,9 @@ func (i *int64Value) Set(s string) (err error) {
 // -- uint Value
 type uintValue uint
 
+func (i *uintValue) Type() string   { return "uint" }
 func (i *uintValue) String() string { return strconv.FormatUint(uint64(*i), 10) }
-
+func (i *uintValue) IsZero() bool   { return *i == 0 }
 func (i *uintValue) Set(s string) (err error) {
 	var v uint64 // default `0` if input is empty
 	if s != "" {
@@ -106,8 +112,9 @@ func (i *uintValue) Set(s string) (err error) {
 // -- uint64 Value
 type uint64Value uint64
 
+func (i *uint64Value) Type() string   { return "uint64" }
 func (i *uint64Value) String() string { return strconv.FormatUint(uint64(*i), 10) }
-
+func (i *uint64Value) IsZero() bool   { return *i == 0 }
 func (i *uint64Value) Set(s string) (err error) {
 	var v uint64 // default `0` if input is empty
 	if s != "" {
@@ -120,8 +127,9 @@ func (i *uint64Value) Set(s string) (err error) {
 // -- string Value
 type stringValue string
 
+func (s *stringValue) Type() string   { return "string" }
 func (s *stringValue) String() string { return string(*s) }
-
+func (s *stringValue) IsZero() bool   { return *s == "" }
 func (s *stringValue) Set(val string) error {
 	*s = stringValue(val)
 	return nil
@@ -130,8 +138,9 @@ func (s *stringValue) Set(val string) error {
 // -- float64 Value
 type float64Value float64
 
+func (f *float64Value) Type() string   { return "float64" }
 func (f *float64Value) String() string { return strconv.FormatFloat(float64(*f), 'g', -1, 64) }
-
+func (f *float64Value) IsZero() bool   { return *f == 0 }
 func (f *float64Value) Set(s string) (err error) {
 	var v float64 // default `0` if input is empty
 	if s != "" {
@@ -144,8 +153,9 @@ func (f *float64Value) Set(s string) (err error) {
 // -- time.Duration Value
 type durationValue time.Duration
 
+func (d *durationValue) Type() string   { return "duration" }
 func (d *durationValue) String() string { return (*time.Duration)(d).String() }
-
+func (d *durationValue) IsZero() bool   { return *d == 0 }
 func (d *durationValue) Set(s string) (err error) {
 	var v time.Duration // default `0` if input is empty
 	if s != "" {
@@ -158,8 +168,9 @@ func (d *durationValue) Set(s string) (err error) {
 // -- bytes Value
 type bytesValue []byte
 
+func (b *bytesValue) Type() string   { return "bytes" }
 func (b *bytesValue) String() string { return base64.StdEncoding.EncodeToString([]byte(*b)) }
-
+func (b *bytesValue) IsZero() bool   { return *b == nil }
 func (b *bytesValue) Set(s string) (err error) {
 	var v []byte // default `nil` if input is empty
 	if s != "" {
