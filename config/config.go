@@ -285,14 +285,14 @@ func (f *FlagSet) argParse() error {
 		name = name[1:]
 
 		if name[0] == '-' {
-			if len(name) == 2 {
+			if len(name) == 1 {
 				f.args = f.args[1:]
 				return nil
 			}
 			name = name[1:]
 		}
 		if len(name) == 0 || name[0] == '-' || name[0] == '=' {
-			return errors.New("config: bad flag syntax: " + name)
+			return errors.New("config: bad flag syntax: " + f.args[0])
 		}
 
 		f.args = f.args[1:]
