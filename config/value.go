@@ -12,7 +12,7 @@ import (
 type Value interface {
 	Type() string
 	String() string
-	IsZero() bool
+	IsZero(string) bool
 	Set(string) error
 }
 
@@ -45,19 +45,19 @@ func newFlagValue(v reflect.Value, defValue string) (value Value, err error) {
 // -- bool Value
 type boolValue bool
 
-func (b *boolValue) Type() string   { return "bool" }
-func (b *boolValue) String() string { return strconv.FormatBool(bool(*b)) }
-func (b *boolValue) IsZero() bool   { return !bool(*b) }
-func (b *boolValue) Set(s string) (err error) {
-	var v bool // default `false` if input is empty
+func (v *boolValue) Type() string         { return "bool" }
+func (v *boolValue) String() string       { return strconv.FormatBool(bool(*v)) }
+func (v *boolValue) IsZero(s string) bool { return s == "false" }
+func (v *boolValue) Set(s string) (err error) {
+	var res bool // default `false` if input is empty
 	if s != "" {
-		v, err = strconv.ParseBool(s)
+		res, err = strconv.ParseBool(s)
 	}
-	*b = boolValue(v)
+	*v = boolValue(res)
 	return err
 }
 
-func (b *boolValue) IsBoolFlag() bool { return true }
+func (v *boolValue) IsBoolFlag() bool { return true }
 
 type boolFlag interface {
 	Value
@@ -67,115 +67,115 @@ type boolFlag interface {
 // -- int Value
 type intValue int
 
-func (i *intValue) Type() string   { return "int" }
-func (i *intValue) String() string { return strconv.Itoa(int(*i)) }
-func (i *intValue) IsZero() bool   { return *i == 0 }
-func (i *intValue) Set(s string) (err error) {
-	var v int64 // default `0` if input is empty
+func (v *intValue) Type() string         { return "int" }
+func (v *intValue) String() string       { return strconv.Itoa(int(*v)) }
+func (v *intValue) IsZero(s string) bool { return s == "0" }
+func (v *intValue) Set(s string) (err error) {
+	var res int64 // default `0` if input is empty
 	if s != "" {
-		v, err = strconv.ParseInt(s, 0, strconv.IntSize)
+		res, err = strconv.ParseInt(s, 0, strconv.IntSize)
 	}
-	*i = intValue(v)
+	*v = intValue(res)
 	return err
 }
 
 // -- int64 Value
 type int64Value int64
 
-func (i *int64Value) Type() string   { return "int64" }
-func (i *int64Value) String() string { return strconv.FormatInt(int64(*i), 10) }
-func (i *int64Value) IsZero() bool   { return *i == 0 }
-func (i *int64Value) Set(s string) (err error) {
-	var v int64 // default `0` if input is empty
+func (v *int64Value) Type() string         { return "int64" }
+func (v *int64Value) String() string       { return strconv.FormatInt(int64(*v), 10) }
+func (v *int64Value) IsZero(s string) bool { return s == "0" }
+func (v *int64Value) Set(s string) (err error) {
+	var res int64 // default `0` if input is empty
 	if s != "" {
-		v, err = strconv.ParseInt(s, 0, 64)
+		res, err = strconv.ParseInt(s, 0, 64)
 	}
-	*i = int64Value(v)
+	*v = int64Value(res)
 	return err
 }
 
 // -- uint Value
 type uintValue uint
 
-func (i *uintValue) Type() string   { return "uint" }
-func (i *uintValue) String() string { return strconv.FormatUint(uint64(*i), 10) }
-func (i *uintValue) IsZero() bool   { return *i == 0 }
-func (i *uintValue) Set(s string) (err error) {
-	var v uint64 // default `0` if input is empty
+func (v *uintValue) Type() string         { return "uint" }
+func (v *uintValue) String() string       { return strconv.FormatUint(uint64(*v), 10) }
+func (v *uintValue) IsZero(s string) bool { return s == "0" }
+func (v *uintValue) Set(s string) (err error) {
+	var res uint64 // default `0` if input is empty
 	if s != "" {
-		v, err = strconv.ParseUint(s, 0, strconv.IntSize)
+		res, err = strconv.ParseUint(s, 0, strconv.IntSize)
 	}
-	*i = uintValue(v)
+	*v = uintValue(res)
 	return err
 }
 
 // -- uint64 Value
 type uint64Value uint64
 
-func (i *uint64Value) Type() string   { return "uint64" }
-func (i *uint64Value) String() string { return strconv.FormatUint(uint64(*i), 10) }
-func (i *uint64Value) IsZero() bool   { return *i == 0 }
-func (i *uint64Value) Set(s string) (err error) {
-	var v uint64 // default `0` if input is empty
+func (v *uint64Value) Type() string         { return "uint64" }
+func (v *uint64Value) String() string       { return strconv.FormatUint(uint64(*v), 10) }
+func (v *uint64Value) IsZero(s string) bool { return s == "0" }
+func (v *uint64Value) Set(s string) (err error) {
+	var res uint64 // default `0` if input is empty
 	if s != "" {
-		v, err = strconv.ParseUint(s, 0, 64)
+		res, err = strconv.ParseUint(s, 0, 64)
 	}
-	*i = uint64Value(v)
+	*v = uint64Value(res)
 	return err
 }
 
 // -- string Value
 type stringValue string
 
-func (s *stringValue) Type() string   { return "string" }
-func (s *stringValue) String() string { return string(*s) }
-func (s *stringValue) IsZero() bool   { return *s == "" }
-func (s *stringValue) Set(val string) error {
-	*s = stringValue(val)
+func (v *stringValue) Type() string         { return "string" }
+func (v *stringValue) String() string       { return string(*v) }
+func (v *stringValue) IsZero(s string) bool { return s == "" }
+func (v *stringValue) Set(s string) error {
+	*v = stringValue(s)
 	return nil
 }
 
 // -- float64 Value
 type float64Value float64
 
-func (f *float64Value) Type() string   { return "float64" }
-func (f *float64Value) String() string { return strconv.FormatFloat(float64(*f), 'g', -1, 64) }
-func (f *float64Value) IsZero() bool   { return *f == 0 }
-func (f *float64Value) Set(s string) (err error) {
-	var v float64 // default `0` if input is empty
+func (v *float64Value) Type() string         { return "float64" }
+func (v *float64Value) String() string       { return strconv.FormatFloat(float64(*v), 'g', -1, 64) }
+func (v *float64Value) IsZero(s string) bool { return s == "0" }
+func (v *float64Value) Set(s string) (err error) {
+	var res float64 // default `0` if input is empty
 	if s != "" {
-		v, err = strconv.ParseFloat(s, 64)
+		res, err = strconv.ParseFloat(s, 64)
 	}
-	*f = float64Value(v)
+	*v = float64Value(res)
 	return err
 }
 
 // -- time.Duration Value
 type durationValue time.Duration
 
-func (d *durationValue) Type() string   { return "duration" }
-func (d *durationValue) String() string { return (*time.Duration)(d).String() }
-func (d *durationValue) IsZero() bool   { return *d == 0 }
-func (d *durationValue) Set(s string) (err error) {
-	var v time.Duration // default `0` if input is empty
+func (v *durationValue) Type() string         { return "duration" }
+func (v *durationValue) String() string       { return (*time.Duration)(v).String() }
+func (v *durationValue) IsZero(s string) bool { return s == "0s" }
+func (v *durationValue) Set(s string) (err error) {
+	var res time.Duration // default `0` if input is empty
 	if s != "" {
-		v, err = time.ParseDuration(s)
+		res, err = time.ParseDuration(s)
 	}
-	*d = durationValue(v)
+	*v = durationValue(res)
 	return err
 }
 
 // -- bytes Value
 type bytesValue []byte
 
-func (b *bytesValue) Type() string   { return "bytes" }
-func (b *bytesValue) String() string { return base64.StdEncoding.EncodeToString([]byte(*b)) }
-func (b *bytesValue) IsZero() bool   { return *b == nil }
-func (b *bytesValue) Set(s string) (err error) {
-	var v []byte // default `nil` if input is empty
+func (v *bytesValue) Type() string         { return "bytes" }
+func (v *bytesValue) String() string       { return base64.StdEncoding.EncodeToString([]byte(*v)) }
+func (v *bytesValue) IsZero(s string) bool { return s == "" }
+func (v *bytesValue) Set(s string) (err error) {
+	var res []byte // default `nil` if input is empty
 	if s != "" {
-		v, err = base64.StdEncoding.DecodeString(s)
+		res, err = base64.StdEncoding.DecodeString(s)
 	}
-	*b = bytesValue(v)
+	*v = bytesValue(res)
 	return err
 }

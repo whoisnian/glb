@@ -379,7 +379,7 @@ func (f *FlagSet) PrintUsage(output io.Writer) {
 		buf.WriteByte(' ')
 
 		buf.WriteString(strings.ReplaceAll(flg.Usage, "\n", "\n"+strings.Repeat(" ", 3+nameLen+1+typeLen+1)))
-		if !flg.Value.IsZero() {
+		if !flg.Value.IsZero(flg.DefValue) {
 			buf.WriteString(" (default ")
 			if _, ok := flg.Value.(*stringValue); ok {
 				buf.WriteString(strconv.Quote(flg.DefValue))

@@ -83,7 +83,7 @@ var tagValueResults = [][]string{
 	{"bytes", "d2hvaXNuaWFu", "Private key (base64)"},
 }
 
-var tagValueUsage = `  -help     bool     Show usage message and quit (default false)
+var tagValueUsage = `  -help     bool     Show usage message and quit
   -config   string   Specify file path of custom configuration json
   -bool     bool     Enable feature xx (default true)
   -int      int      Count of xx0
