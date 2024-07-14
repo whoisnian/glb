@@ -30,7 +30,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/whoisnian/glb/ansi"
 	"github.com/whoisnian/glb/util/fsutil"
+	"github.com/whoisnian/glb/util/strutil"
 )
 
 const (
@@ -146,7 +148,7 @@ func (f *FlagSet) parseStructFields(structValue reflect.Value, group string) err
 
 		flg := &Flag{
 			Name:     name,
-			Env:      strings.ToUpper(f.envKeyPrefix + group + field.Name),
+			Env:      strutil.Underscore(f.envKeyPrefix+group+field.Name, true),
 			Usage:    usage,
 			Value:    value,
 			DefValue: value.String(), // after value.Set(defValue)
@@ -226,7 +228,7 @@ func FromCommandLine(pStruct any) ([]string, error) {
 		return nil, err
 	}
 	if f.ShowUsage() {
-		f.PrintUsage(os.Stderr)
+		f.PrintUsage(os.Stderr, ansi.IsSupported(os.Stderr.Fd()))
 		os.Exit(0)
 	}
 	return f.Args(), nil
@@ -358,14 +360,19 @@ func (f *FlagSet) parseConfigJson() (err error) {
 	return JsonUnmarshal(jsonData, f.ptr)
 }
 
-func (f *FlagSet) PrintUsage(output io.Writer) {
+func (f *FlagSet) PrintUsage(output io.Writer, colorful bool) {
 	var (
 		buf = &bytes.Buffer{}
 		pad = bytes.Repeat([]byte{' '}, 64)
 
 		nameLen = min(len(pad), f.maxLength)
 		typeLen = 8 // len("duration") == 8
+		colors  = [...]string{"", "", ""}
 	)
+	if colorful {
+		// [ansi.Reset, envColor, defColor]
+		colors = [...]string{ansi.Reset, ansi.CyanFG, ansi.MagentaFG}
+	}
 	for _, flg := range f.flagList {
 		buf.Reset()
 
@@ -379,14 +386,19 @@ func (f *FlagSet) PrintUsage(output io.Writer) {
 		buf.WriteByte(' ')
 
 		buf.WriteString(strings.ReplaceAll(flg.Usage, "\n", "\n"+strings.Repeat(" ", 3+nameLen+1+typeLen+1)))
+		if flg.Env != "" {
+			buf.WriteString(" " + colors[1] + "[")
+			buf.WriteString(flg.Env)
+			buf.WriteString("]" + colors[0])
+		}
 		if !flg.Value.IsZero(flg.DefValue) {
-			buf.WriteString(" (default ")
+			buf.WriteString(" " + colors[2] + "(default ")
 			if _, ok := flg.Value.(*stringValue); ok {
 				buf.WriteString(strconv.Quote(flg.DefValue))
 			} else {
 				buf.WriteString(flg.DefValue)
 			}
-			buf.WriteString(")")
+			buf.WriteString(")" + colors[0])
 		}
 		buf.WriteByte('\n')
 		output.Write(buf.Bytes())

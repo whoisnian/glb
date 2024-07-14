@@ -85,15 +85,15 @@ var tagValueResults = [][]string{
 
 var tagValueUsage = `  -help     bool     Show usage message and quit
   -config   string   Specify file path of custom configuration json
-  -bool     bool     Enable feature xx (default true)
-  -int      int      Count of xx0
-  -int64    int64    Count of xx1 (default 1)
-  -uint     uint     Count of xx2 (default 2)
-  -uint64   uint64   Count of xx3 (default 3)
-  -string   string   Listen addr (default ":80")
-  -float64  float64  Threshold of xx (default 0.6)
-  -duration duration Heartbeat interval (default 10s)
-  -bytes    bytes    Private key (base64) (default d2hvaXNuaWFu)
+  -bool     bool     Enable feature xx [CFG_BOOL] (default true)
+  -int      int      Count of xx0 [CFG_INT]
+  -int64    int64    Count of xx1 [CFG_INT64] (default 1)
+  -uint     uint     Count of xx2 [CFG_UINT] (default 2)
+  -uint64   uint64   Count of xx3 [CFG_UINT64] (default 3)
+  -string   string   Listen addr [CFG_STRING] (default ":80")
+  -float64  float64  Threshold of xx [CFG_FLOAT64] (default 0.6)
+  -duration duration Heartbeat interval [CFG_DURATION] (default 10s)
+  -bytes    bytes    Private key (base64) [CFG_BYTES] (default d2hvaXNuaWFu)
 `
 
 func TestNewFlagSet_ParseTagValue(t *testing.T) {
@@ -424,7 +424,7 @@ func TestPrintUsage(t *testing.T) {
 		t.Fatalf("f.ShowUsage() = %v, want true", f.ShowUsage())
 	}
 	out := &bytes.Buffer{}
-	f.PrintUsage(out)
+	f.PrintUsage(out, false)
 	if out.String() != tagValueUsage {
 		t.Fatalf("f.PrintUsage() result:\nget:\n%swant:\n%s", out.String(), tagValueUsage)
 	}
