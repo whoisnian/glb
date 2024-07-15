@@ -107,6 +107,41 @@ func TestTextHandler(t *testing.T) {
 	}
 }
 
+func TestTextHandlerRace(t *testing.T) {
+	const P = 10
+	const N = 10000
+	done := make(chan struct{})
+	h := NewTextHandler(io.Discard, NewOptions(LevelInfo, true, true))
+	for i := 0; i < P; i++ {
+		go func() {
+			defer func() { done <- struct{}{} }()
+			var pcs [1]uintptr
+			runtime.Callers(1, pcs[:])
+			r := slog.NewRecord(testTime, LevelInfo, "message", pcs[0])
+			for j := 0; j < N; j++ {
+				if err := h.Handle(context.Background(), r); err != nil {
+					t.Errorf("direct Handle() error: %v", err)
+					return
+				}
+				h2 := h.WithAttrs([]slog.Attr{slog.Int("int", 123)})
+				if err := h2.Handle(context.Background(), r); err != nil {
+					t.Errorf("with attrs Handle() error: %v", err)
+					return
+				}
+				h2 = h.WithGroup("group")
+				h2 = h2.WithAttrs([]slog.Attr{slog.Int("int", 123)})
+				if err := h2.Handle(context.Background(), r); err != nil {
+					t.Errorf("with group attrs Handle() error: %v", err)
+					return
+				}
+			}
+		}()
+	}
+	for i := 0; i < P; i++ {
+		<-done
+	}
+}
+
 // as TextMarshaler for TestAppendTextAttr
 type textM struct{ s string }
 
