@@ -80,6 +80,18 @@ func TestJsonHandlerWithGroup(t *testing.T) {
 		t.Errorf("new2.Handle() got %q, want %q", got, want)
 	}
 
+	// new3 Handler
+	hh = hh.WithAttrs([]slog.Attr{slog.Bool("b", true)})
+	hh = hh.WithAttrs([]slog.Attr{slog.Int("c", 3)})
+	buf.Reset()
+	if err := hh.Handle(context.Background(), r); err != nil {
+		t.Fatalf("new3.Handle() error: %v", err)
+	}
+	got, want = buf.String(), `{"time":"2000-01-02T03:04:05.000000006Z","level":"INFO","msg":"m","s":{"t":{"b":true,"c":3,"dur":1000000,"a":2}}}`+"\n"
+	if got != want {
+		t.Errorf("new3.Handle() got %q, want %q", got, want)
+	}
+
 	// origin Handler
 	buf.Reset()
 	if err := h.Handle(context.Background(), r); err != nil {

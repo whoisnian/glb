@@ -60,13 +60,25 @@ func TestNanoHandlerWithGroup(t *testing.T) {
 	r.AddAttrs(slog.Duration("dur", time.Millisecond))
 	r.AddAttrs(slog.Int("a", 2))
 
-	// new Handler
+	// new1 Handler
 	if err := hh.Handle(context.Background(), r); err != nil {
-		t.Fatalf("new.Handle() error: %v", err)
+		t.Fatalf("new1.Handle() error: %v", err)
 	}
 	got, want := buf.String(), "2000-01-02 03:04:05 [I] m 1ms 2\n"
 	if got != want {
-		t.Errorf("new.Handle() got %q, want %q", got, want)
+		t.Errorf("new1.Handle() got %q, want %q", got, want)
+	}
+
+	// new2 Handler
+	hh = hh.WithAttrs([]slog.Attr{slog.Bool("b", true)})
+	hh = hh.WithAttrs([]slog.Attr{slog.Int("c", 3)})
+	buf.Reset()
+	if err := hh.Handle(context.Background(), r); err != nil {
+		t.Fatalf("new2.Handle() error: %v", err)
+	}
+	got, want = buf.String(), `2000-01-02 03:04:05 [I] m true 3 1ms 2`+"\n"
+	if got != want {
+		t.Errorf("new2.Handle() got %q, want %q", got, want)
 	}
 
 	// origin Handler

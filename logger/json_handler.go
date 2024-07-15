@@ -58,8 +58,8 @@ func (h *JsonHandler) WithAttrs(attrs []slog.Attr) Handler {
 
 	h2 := h.clone()
 	for _, a := range attrs {
-		appendJsonAttr(&h2.preformatted, a, h.addSep, h.Options.colorful)
-		h.addSep = true
+		appendJsonAttr(&h2.preformatted, a, h2.addSep, h2.Options.colorful)
+		h2.addSep = true
 	}
 	return h2
 }
