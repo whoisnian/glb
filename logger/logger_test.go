@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
 	"log/slog"
 	"os"
 	"os/exec"
@@ -83,6 +84,29 @@ func TestLoggerWithGroup(t *testing.T) {
 	got, want = buf.String(), `^time=`+reTextTime+` level=INFO msg=mmm c=str\n$`
 	if !regexp.MustCompile(want).MatchString(got) {
 		t.Errorf("origin.Handle() got %q, want matched by %s", got, want)
+	}
+}
+
+func TestLoggerRace(t *testing.T) {
+	const P = 10
+	const N = 10000
+	done := make(chan struct{})
+	l := New(NewTextHandler(io.Discard, NewOptions(LevelInfo, true, true)))
+	for i := 0; i < P; i++ {
+		go func() {
+			defer func() { done <- struct{}{} }()
+			for j := 0; j < N; j++ {
+				l.Log(context.Background(), LevelInfo, "mm", "a", 1)
+				ll := l.With(slog.Bool("b", false))
+				ll.Log(context.Background(), LevelInfo, "mm", "a", 1)
+				ll = l.WithGroup("g")
+				ll = ll.With(slog.String("c", "str"))
+				ll.Log(context.Background(), LevelInfo, "mm", "a", 1)
+			}
+		}()
+	}
+	for i := 0; i < P; i++ {
+		<-done
 	}
 }
 
