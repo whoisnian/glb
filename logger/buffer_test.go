@@ -20,7 +20,7 @@ func TestBufferPoolRace(t *testing.T) {
 				}
 				for k := 0; k < len(*buf); k++ {
 					if (*buf)[k] != byte(j%256) {
-						t.Errorf("goroutine(%d) read buf[%d] = %d, want %d", i, k, (*buf)[k], j%256)
+						t.Errorf("goroutine(%d.%d) read buf[%d] = %d, want %d", i, j, k, (*buf)[k], j%256)
 						return
 					}
 				}

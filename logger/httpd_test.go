@@ -16,11 +16,11 @@ const reTid = `[2-7A-Z]{8}-[0-9a-z]{0,13}`
 func requestDiscard(t *testing.T, method string, url string) {
 	req, err := http.NewRequest(method, url, nil)
 	if err != nil {
-		t.Fatalf("http.NewRequest(%v, %v) get err %v", method, url, err)
+		t.Fatalf("http.NewRequest(%v, %v) got error %v", method, url, err)
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		t.Fatalf("DefaultClient.Do(%v, %v) get err %v", method, url, err)
+		t.Fatalf("DefaultClient.Do(%v, %v) got error %v", method, url, err)
 	}
 	resp.Body.Close()
 }

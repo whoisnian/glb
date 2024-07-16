@@ -132,18 +132,18 @@ func TestNanoHandlerRace(t *testing.T) {
 			r := slog.NewRecord(testTime, LevelInfo, "message", pcs[0])
 			for j := 0; j < N; j++ {
 				if err := h.Handle(context.Background(), r); err != nil {
-					t.Errorf("direct Handle() error: %v", err)
+					t.Errorf("goroutine(%d.%d) direct Handle got error %v", i, j, err)
 					return
 				}
 				h2 := h.WithAttrs([]slog.Attr{slog.Int("int", 123)})
 				if err := h2.Handle(context.Background(), r); err != nil {
-					t.Errorf("with attrs Handle() error: %v", err)
+					t.Errorf("goroutine(%d.%d) with attrs Handle got error %v", i, j, err)
 					return
 				}
 				h2 = h.WithGroup("group")
 				h2 = h2.WithAttrs([]slog.Attr{slog.Int("int", 123)})
 				if err := h2.Handle(context.Background(), r); err != nil {
-					t.Errorf("with group attrs Handle() error: %v", err)
+					t.Errorf("goroutine(%d.%d) with group attrs Handle got error %v", i, j, err)
 					return
 				}
 			}
