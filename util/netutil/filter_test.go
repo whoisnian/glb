@@ -118,6 +118,43 @@ func TestIPv4FilterMatchAll(t *testing.T) {
 	}
 }
 
+func TestIPv4FilterRace(t *testing.T) {
+	const P = 10
+	const N = 10000
+	done := make(chan struct{})
+	filter := NewIPv4Filter()
+	for i := 0; i < P; i++ {
+		go func() {
+			defer func() { done <- struct{}{} }()
+			rd := rand.New(rand.NewPCG(0, uint64(i)))
+			buf := make([]byte, net.IPv4len)
+			for j := 0; j < N; j++ {
+				if _, err := ioutil.ReadRand(rd, buf); err != nil {
+					t.Errorf("goroutine(%d.%d) ReadRand got error %v", i, j, err)
+					return
+				}
+				cidr := &net.IPNet{IP: buf, Mask: net.CIDRMask(rd.IntN(23)+10, 32)}
+				if j%4 == 0 {
+					if err := filter.Add(cidr); err != nil {
+						t.Errorf("goroutine(%d.%d) add cidr got error %v", i, j, err)
+						return
+					}
+				} else if j%4 == 1 {
+					if err := filter.Remove(cidr); err != nil {
+						t.Errorf("goroutine(%d.%d) remove cidr got error %v", i, j, err)
+						return
+					}
+				} else {
+					_ = filter.Contains(buf)
+				}
+			}
+		}()
+	}
+	for i := 0; i < P; i++ {
+		<-done
+	}
+}
+
 type Filter interface {
 	Add(*net.IPNet) error
 	Remove(*net.IPNet) error
