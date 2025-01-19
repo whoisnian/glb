@@ -19,7 +19,7 @@ import (
 
 func TestTextHandlerWithAttrs(t *testing.T) {
 	var buf bytes.Buffer
-	var h Handler = NewTextHandler(&buf, NewOptions(LevelInfo, false, false))
+	var h slog.Handler = NewTextHandler(&buf, Options{LevelInfo, false, false})
 
 	// skip if attrs is empty
 	hh := h.WithAttrs([]slog.Attr{})
@@ -53,7 +53,7 @@ func TestTextHandlerWithAttrs(t *testing.T) {
 
 func TestTextHandlerWithGroup(t *testing.T) {
 	var buf bytes.Buffer
-	var h Handler = NewTextHandler(&buf, NewOptions(LevelInfo, false, false))
+	var h slog.Handler = NewTextHandler(&buf, Options{LevelInfo, false, false})
 
 	hh := h.WithGroup("s")
 	r := slog.NewRecord(testTime, LevelInfo, "m", 0)
@@ -101,7 +101,7 @@ func TestTextHandler(t *testing.T) {
 		r := slog.NewRecord(testTime, LevelInfo, "message", pcs[0])
 		r.AddAttrs(test.attrs...)
 		var buf bytes.Buffer
-		var h Handler = NewTextHandler(&buf, NewOptions(LevelInfo, false, test.addSource))
+		var h slog.Handler = NewTextHandler(&buf, Options{LevelInfo, false, test.addSource})
 		t.Run(test.name, func(t *testing.T) {
 			if test.preAttrs != nil {
 				h = h.WithAttrs(test.preAttrs)
@@ -123,7 +123,7 @@ func TestTextHandlerRace(t *testing.T) {
 	const P = 10
 	const N = 10000
 	done := make(chan struct{})
-	h := NewTextHandler(io.Discard, NewOptions(LevelInfo, true, true))
+	h := NewTextHandler(io.Discard, Options{LevelInfo, true, true})
 	for i := 0; i < P; i++ {
 		go func() {
 			defer func() { done <- struct{}{} }()

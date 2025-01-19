@@ -16,7 +16,7 @@ import (
 func (l *Logger) Relay(store *httpd.Store) {
 	start := time.Now()
 	remoteIP, _ := netutil.SplitHostPort(store.R.RemoteAddr)
-	if l.h.Enabled(LevelInfo) {
+	if l.Enabled(context.Background(), LevelInfo) {
 		r := slog.NewRecord(time.Now(), LevelInfo, "", 0)
 		r.AddAttrs(
 			slog.String("tag", "REQ_BEG"),
@@ -25,10 +25,10 @@ func (l *Logger) Relay(store *httpd.Store) {
 			slog.String("path", store.R.RequestURI),
 			slog.String("tid", store.GetID()),
 		)
-		l.h.Handle(context.Background(), r)
+		l.handler.Handle(context.Background(), r)
 	}
 	defer func() {
-		if l.h.Enabled(LevelInfo) {
+		if l.Enabled(context.Background(), LevelInfo) {
 			if store.W.Status == 0 {
 				store.W.Status = http.StatusOK
 			}
@@ -42,7 +42,7 @@ func (l *Logger) Relay(store *httpd.Store) {
 				slog.String("path", store.R.RequestURI),
 				slog.String("tid", store.GetID()),
 			)
-			l.h.Handle(context.Background(), r)
+			l.handler.Handle(context.Background(), r)
 		}
 	}()
 	defer func() {
@@ -51,11 +51,11 @@ func (l *Logger) Relay(store *httpd.Store) {
 			const size = 64 << 10
 			buf := make([]byte, size)
 			buf = buf[:runtime.Stack(buf, false)]
-			if l.h.Enabled(LevelError) {
+			if l.Enabled(context.Background(), LevelError) {
 				r := slog.NewRecord(time.Now(), LevelError, strutil.UnsafeBytesToString(buf), 0)
 				r.AddAttrs(slog.Any("panic", err))
 				r.AddAttrs(slog.String("tid", store.GetID()))
-				l.h.Handle(context.Background(), r)
+				l.handler.Handle(context.Background(), r)
 			}
 			if store.W.Status == 0 {
 				http.Error(store.W, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)

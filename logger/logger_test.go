@@ -17,7 +17,7 @@ const reTextTime = `\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(Z|[+-]\d{2}:\d{2})`
 
 func TestLoggerWith(t *testing.T) {
 	var buf bytes.Buffer
-	var l *Logger = New(NewTextHandler(&buf, NewOptions(LevelInfo, false, false)))
+	var l *Logger = New(NewTextHandler(&buf, Options{LevelInfo, false, false}))
 
 	// skip if args is empty
 	ll := l.With()
@@ -53,7 +53,7 @@ func TestLoggerWith(t *testing.T) {
 
 func TestLoggerWithGroup(t *testing.T) {
 	var buf bytes.Buffer
-	var l *Logger = New(NewTextHandler(&buf, NewOptions(LevelInfo, false, false)))
+	var l *Logger = New(NewTextHandler(&buf, Options{LevelInfo, false, false}))
 
 	// skip if args is empty
 	ll := l.WithGroup("")
@@ -91,7 +91,7 @@ func TestLoggerRace(t *testing.T) {
 	const P = 10
 	const N = 10000
 	done := make(chan struct{})
-	l := New(NewTextHandler(io.Discard, NewOptions(LevelInfo, true, true)))
+	l := New(NewTextHandler(io.Discard, Options{LevelInfo, true, true}))
 	for i := 0; i < P; i++ {
 		go func() {
 			defer func() { done <- struct{}{} }()
@@ -112,10 +112,10 @@ func TestLoggerRace(t *testing.T) {
 
 func TestLoggerOutput(t *testing.T) {
 	var buf bytes.Buffer
-	var l *Logger = New(NewTextHandler(&buf, NewOptions(LevelInfo, false, false)))
+	var l *Logger = New(NewTextHandler(&buf, Options{LevelInfo, false, false}))
 
 	// Info
-	l.Info("msg", "a", 1, "b", 2)
+	l.Info(context.Background(), "msg", "a", 1, "b", 2)
 	got, want := buf.String(), `^time=`+reTextTime+` level=INFO msg=msg a=1 b=2\n$`
 	if !regexp.MustCompile(want).MatchString(got) {
 		t.Errorf("Logger.Info() got %q, want matched by %s", got, want)
@@ -123,14 +123,14 @@ func TestLoggerOutput(t *testing.T) {
 
 	// Debug
 	buf.Reset()
-	l.Debug("ddd", "a", 1)
+	l.Debug(context.Background(), "ddd", "a", 1)
 	if buf.String() != "" {
 		t.Errorf("Logger.Debug() got %q, want %q", got, "")
 	}
 
 	// Warn
 	buf.Reset()
-	l.Warn("w", slog.Duration("dur", 3*time.Second))
+	l.Warn(context.Background(), "w", slog.Duration("dur", 3*time.Second))
 	got, want = buf.String(), `^time=`+reTextTime+` level=WARN msg=w dur=3s\n$`
 	if !regexp.MustCompile(want).MatchString(got) {
 		t.Errorf("Logger.Warn() got %q, want matched by %s", got, want)
@@ -138,7 +138,7 @@ func TestLoggerOutput(t *testing.T) {
 
 	// Error
 	buf.Reset()
-	l.Error("bad", slog.Int("a", 1), "missing")
+	l.Error(context.Background(), "bad", slog.Int("a", 1), "missing")
 	got, want = buf.String(), `^time=`+reTextTime+` level=ERROR msg=bad a=1 !BADKEY=missing\n$`
 	if !regexp.MustCompile(want).MatchString(got) {
 		t.Errorf("Logger.Error() got %q, want matched by %s", got, want)
@@ -163,10 +163,10 @@ func TestLoggerOutput(t *testing.T) {
 
 func TestLoggerOutputf(t *testing.T) {
 	var buf bytes.Buffer
-	var l *Logger = New(NewTextHandler(&buf, NewOptions(LevelInfo, false, false)))
+	var l *Logger = New(NewTextHandler(&buf, Options{LevelInfo, false, false}))
 
 	// Infof
-	l.Infof("from:%s", "192.168.0.2")
+	l.Infof(context.Background(), "from:%s", "192.168.0.2")
 	got, want := buf.String(), `^time=`+reTextTime+` level=INFO msg=from:192.168.0.2\n$`
 	if !regexp.MustCompile(want).MatchString(got) {
 		t.Errorf("Logger.Infof() got %q, want matched by %s", got, want)
@@ -174,14 +174,14 @@ func TestLoggerOutputf(t *testing.T) {
 
 	// Debugf
 	buf.Reset()
-	l.Debugf("cost:%ds", 5)
+	l.Debugf(context.Background(), "cost:%ds", 5)
 	if buf.String() != "" {
 		t.Errorf("Logger.Debugf() got %q, want %q", got, "")
 	}
 
 	// Warnf
 	buf.Reset()
-	l.Warnf("cost:%.2fs", 2.5)
+	l.Warnf(context.Background(), "cost:%.2fs", 2.5)
 	got, want = buf.String(), `^time=`+reTextTime+` level=WARN msg=cost:2.50s\n$`
 	if !regexp.MustCompile(want).MatchString(got) {
 		t.Errorf("Logger.Warnf() got %q, want matched by %s", got, want)
@@ -189,7 +189,7 @@ func TestLoggerOutputf(t *testing.T) {
 
 	// Errorf
 	buf.Reset()
-	l.Errorf("err:%s", errors.New("invalid"))
+	l.Errorf(context.Background(), "err:%s", errors.New("invalid"))
 	got, want = buf.String(), `^time=`+reTextTime+` level=ERROR msg=err:invalid\n$`
 	if !regexp.MustCompile(want).MatchString(got) {
 		t.Errorf("Logger.Errorf() got %q, want matched by %s", got, want)
@@ -204,43 +204,11 @@ func TestLoggerOutputf(t *testing.T) {
 	}
 }
 
-func TestLoggerPanic(t *testing.T) {
-	var buf bytes.Buffer
-	var l *Logger = New(NewTextHandler(&buf, NewOptions(LevelInfo, false, false)))
-	want := `^time=` + reTextTime + ` level=ERROR msg="a b c" b=two\n$`
-
-	defer func() {
-		got := buf.String()
-		if recover() == nil || !regexp.MustCompile(want).MatchString(got) {
-			t.Fatalf("Logger.Panic() got %q, want matched by %s", got, want)
-		}
-	}()
-
-	l.Panic("a b c", slog.String("b", "two"))
-	t.Fatal("Logger.Panic() should get panic")
-}
-
-func TestLoggerPanicf(t *testing.T) {
-	var buf bytes.Buffer
-	var l *Logger = New(NewTextHandler(&buf, NewOptions(LevelInfo, false, false)))
-	want := `^time=` + reTextTime + ` level=ERROR msg="err: invalid addr"\n$`
-
-	defer func() {
-		got := buf.String()
-		if recover() == nil || !regexp.MustCompile(want).MatchString(got) {
-			t.Fatalf("Logger.Panicf() got %q, want matched by %s", got, want)
-		}
-	}()
-
-	l.Panicf("err: %s", errors.New("invalid addr"))
-	t.Fatal("Logger.Panicf() should get panic")
-}
-
 func TestLoggerFatal(t *testing.T) {
 	// https://stackoverflow.com/a/33404435/11239247
 	if os.Getenv("TEST_FATAL") == "true" {
-		l := New(NewTextHandler(os.Stderr, NewOptions(LevelInfo, false, false)))
-		l.Fatal("f", "t", testTime)
+		l := New(NewTextHandler(os.Stderr, Options{LevelInfo, false, false}))
+		l.Fatal(context.Background(), "f", "t", testTime)
 		return
 	}
 	want := `^time=` + reTextTime + ` level=FATAL msg=f t=2000-01-02T03:04:05Z\n$`
@@ -262,8 +230,8 @@ func TestLoggerFatal(t *testing.T) {
 func TestLoggerFatalf(t *testing.T) {
 	// https://stackoverflow.com/a/33404435/11239247
 	if os.Getenv("TEST_FATAL") == "true" {
-		l := New(NewTextHandler(os.Stderr, NewOptions(LevelInfo, false, false)))
-		l.Fatalf("%[3]*.[2]*[1]f", 12.0, 2, 6)
+		l := New(NewTextHandler(os.Stderr, Options{LevelInfo, false, false}))
+		l.Fatalf(context.Background(), "%[3]*.[2]*[1]f", 12.0, 2, 6)
 		return
 	}
 	want := `^time=` + reTextTime + ` level=FATAL msg=" 12.00"\n$`

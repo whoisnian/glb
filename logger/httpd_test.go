@@ -27,7 +27,7 @@ func requestDiscard(t *testing.T, method string, url string) {
 
 func TestRelay4(t *testing.T) {
 	var buf bytes.Buffer
-	var l *Logger = New(NewTextHandler(&buf, NewOptions(LevelInfo, false, false)))
+	var l *Logger = New(NewTextHandler(&buf, Options{LevelInfo, false, false}))
 
 	mux := httpd.NewMux()
 	mux.HandleRelay(l.Relay)
@@ -72,7 +72,7 @@ func TestRelay4(t *testing.T) {
 
 func TestRelay6(t *testing.T) {
 	var buf bytes.Buffer
-	var l *Logger = New(NewTextHandler(&buf, NewOptions(LevelInfo, false, false)))
+	var l *Logger = New(NewTextHandler(&buf, Options{LevelInfo, false, false}))
 
 	mux := httpd.NewMux()
 	mux.HandleRelay(l.Relay)
@@ -117,7 +117,7 @@ func TestRelay6(t *testing.T) {
 
 func TestRelayRecover(t *testing.T) {
 	var buf bytes.Buffer
-	var l *Logger = New(NewTextHandler(&buf, NewOptions(LevelInfo, false, false)))
+	var l *Logger = New(NewTextHandler(&buf, Options{LevelInfo, false, false}))
 
 	mux := httpd.NewMux()
 	mux.HandleRelay(l.Relay)

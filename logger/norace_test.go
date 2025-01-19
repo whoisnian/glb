@@ -15,7 +15,7 @@ func TestNanoHandlerAlloc(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		r.AddAttrs(slog.Int("x = y", i))
 	}
-	var h Handler = NewNanoHandler(io.Discard, NewOptions(LevelInfo, false, false))
+	var h slog.Handler = NewNanoHandler(io.Discard, Options{LevelInfo, false, false})
 	got := int(testing.AllocsPerRun(5, func() { h.Handle(context.Background(), r) }))
 	if got != 0 {
 		t.Errorf("origin.Handle() got %d allocs, want 0", got)
@@ -34,7 +34,7 @@ func TestTextHandlerAlloc(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		r.AddAttrs(slog.Int("x = y", i))
 	}
-	var h Handler = NewTextHandler(io.Discard, NewOptions(LevelInfo, false, false))
+	var h slog.Handler = NewTextHandler(io.Discard, Options{LevelInfo, false, false})
 	got := int(testing.AllocsPerRun(5, func() { h.Handle(context.Background(), r) }))
 	if got != 0 {
 		t.Errorf("origin.Handle() got %d allocs, want 0", got)
@@ -53,7 +53,7 @@ func TestJsonHandlerAlloc(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		r.AddAttrs(slog.Int("x", i))
 	}
-	var h Handler = NewJsonHandler(io.Discard, NewOptions(LevelInfo, false, false))
+	var h slog.Handler = NewJsonHandler(io.Discard, Options{LevelInfo, false, false})
 	got := int(testing.AllocsPerRun(5, func() { h.Handle(context.Background(), r) }))
 	if got != 0 {
 		t.Errorf("origin.Handle() got %d allocs, want 0", got)
