@@ -20,7 +20,10 @@ import (
 
 // TextHandler formats slog.Record as a sequence of key=value pairs separated by spaces and followed by a newline.
 type TextHandler struct {
-	*Options
+	level     slog.Level
+	colorful  bool
+	addSource bool
+
 	outMu *sync.Mutex
 	out   io.Writer
 
@@ -30,17 +33,21 @@ type TextHandler struct {
 
 // NewTextHandler creates a new TextHandler with the given io.Writer and Options.
 // The Options should not be changed after first use.
-func NewTextHandler(w io.Writer, opts *Options) *TextHandler {
+func NewTextHandler(w io.Writer, opts Options) *TextHandler {
 	return &TextHandler{
-		Options: opts,
-		outMu:   &sync.Mutex{},
-		out:     w,
+		level:     opts.Level,
+		colorful:  opts.Colorful,
+		addSource: opts.AddSource,
+		outMu:     &sync.Mutex{},
+		out:       w,
 	}
 }
 
 func (h *TextHandler) clone() *TextHandler {
 	return &TextHandler{
-		Options:      h.Options,
+		level:        h.level,
+		colorful:     h.colorful,
+		addSource:    h.addSource,
 		outMu:        h.outMu,
 		out:          h.out,
 		preformatted: slices.Clip(h.preformatted),
@@ -66,9 +73,19 @@ func (h *TextHandler) freePrefix(prefix *[]byte) {
 	prefixPool.Put(prefix)
 }
 
+// Enabled reports whether the given level is enabled.
+func (h *TextHandler) Enabled(_ context.Context, l slog.Level) bool {
+	return l >= h.level
+}
+
+// IsAddSource reports whether the handler adds source info.
+func (h *TextHandler) IsAddSource() bool {
+	return h.addSource
+}
+
 // WithAttrs returns a new TextHandler whose attributes consists of h's attributes followed by attrs.
 // If attrs is empty, WithAttrs returns the origin TextHandler.
-func (h *TextHandler) WithAttrs(attrs []slog.Attr) Handler {
+func (h *TextHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	if len(attrs) == 0 {
 		return h
 	}
@@ -76,7 +93,7 @@ func (h *TextHandler) WithAttrs(attrs []slog.Attr) Handler {
 	h2 := h.clone()
 	for _, a := range attrs {
 		prefix := h2.prefix()
-		appendTextAttr(&h2.preformatted, a, prefix, h.Options.colorful)
+		appendTextAttr(&h2.preformatted, a, prefix, h2.colorful)
 		h2.freePrefix(prefix)
 	}
 	return h2
@@ -84,7 +101,7 @@ func (h *TextHandler) WithAttrs(attrs []slog.Attr) Handler {
 
 // WithGroup returns a new TextHandler that starts a group with the given name.
 // If name is empty, WithGroup returns the origin TextHandler.
-func (h *TextHandler) WithGroup(name string) Handler {
+func (h *TextHandler) WithGroup(name string) slog.Handler {
 	h2 := h.clone()
 	if len(h2.groupPrefix) == 0 {
 		h2.groupPrefix = name
@@ -112,9 +129,9 @@ func (h *TextHandler) Handle(_ context.Context, r slog.Record) error {
 	*buf = append(*buf, ' ')
 	*buf = append(*buf, slog.LevelKey...)
 	*buf = append(*buf, '=')
-	appendFullLevel(buf, r.Level, h.Options.colorful)
+	appendFullLevel(buf, r.Level, h.colorful)
 	// source
-	if h.Options.addSource {
+	if h.addSource {
 		*buf = append(*buf, ' ')
 		*buf = append(*buf, slog.SourceKey...)
 		*buf = append(*buf, '=')
@@ -133,7 +150,7 @@ func (h *TextHandler) Handle(_ context.Context, r slog.Record) error {
 	if r.NumAttrs() > 0 {
 		r.Attrs(func(a slog.Attr) bool {
 			prefix := h.prefix()
-			appendTextAttr(buf, a, prefix, h.Options.colorful)
+			appendTextAttr(buf, a, prefix, h.colorful)
 			h.freePrefix(prefix)
 			return true
 		})
@@ -199,6 +216,10 @@ func appendTextValue(buf *[]byte, v slog.Value, colorful bool) {
 			} else {
 				appendTextString(buf, string(data))
 			}
+		} else if vv, ok := va.(error); ok {
+			appendTextString(buf, vv.Error())
+		} else if vv, ok := va.([]byte); ok {
+			appendTextString(buf, string(vv))
 		} else if vv, ok := va.(AnsiString); ok {
 			if colorful && vv.Prefix != "" {
 				*buf = append(*buf, vv.Prefix...)
@@ -207,10 +228,6 @@ func appendTextValue(buf *[]byte, v slog.Value, colorful bool) {
 			} else {
 				appendTextString(buf, vv.Value)
 			}
-		} else if vv, ok := va.(error); ok {
-			appendTextString(buf, vv.Error())
-		} else if vv, ok := va.([]byte); ok {
-			appendTextString(buf, string(vv))
 		} else {
 			appendTextString(buf, fmt.Sprint(va))
 		}

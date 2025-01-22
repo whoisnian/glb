@@ -1,61 +1,43 @@
 package logger
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"testing"
 	"time"
 )
 
-func TestOptionsEnabled(t *testing.T) {
-	var tests = []struct {
-		opts  Options
-		input slog.Level
-		want  bool
-	}{
-		{Options{level: LevelDebug}, LevelDebug, true},
-		{Options{level: LevelDebug}, LevelInfo, true},
-		{Options{level: LevelDebug}, LevelWarn, true},
-		{Options{level: LevelInfo}, LevelDebug, false},
-		{Options{level: LevelInfo}, LevelInfo, true},
-		{Options{level: LevelInfo}, LevelError, true},
-		{Options{level: LevelError}, LevelDebug, false},
-		{Options{level: LevelError}, LevelWarn, false},
-		{Options{level: LevelError}, LevelError, true},
-		{Options{level: LevelError}, LevelFatal, true},
-	}
-	for _, test := range tests {
-		got := test.opts.Enabled(test.input)
-		if got != test.want {
-			t.Errorf("%v.Enabled(%d) = %v, want %v", test.opts, test.input, got, test.want)
-		}
-	}
-}
+type noopHandler struct{}
 
-func TestOptionsCheck(t *testing.T) {
+func (noopHandler) Enabled(context.Context, slog.Level) bool  { return true }
+func (noopHandler) Handle(context.Context, slog.Record) error { return nil }
+func (noopHandler) WithAttrs([]slog.Attr) slog.Handler        { return noopHandler{} }
+func (noopHandler) WithGroup(string) slog.Handler             { return noopHandler{} }
+
+func TestTryIsAddSource(t *testing.T) {
 	var tests = []struct {
-		opts  *Options
-		wantD bool
-		wantC bool
-		wantA bool
+		handler slog.Handler
+		want    bool
 	}{
-		{NewOptions(LevelDebug, false, false), true, false, false},
-		{NewOptions(LevelDebug, true, false), true, true, false},
-		{NewOptions(LevelInfo, true, true), false, true, true},
-		{NewOptions(LevelWarn, false, false), false, false, false},
-		{NewOptions(LevelError, false, true), false, false, true},
-		{NewOptions(LevelFatal, true, true), false, true, true},
+		{noopHandler{}, true}, // default behavior is the same as slog.Logger, always invokes runtime.Callers()
+		{slog.Default().Handler(), false},
+		{slog.NewTextHandler(io.Discard, &slog.HandlerOptions{AddSource: true}), true},
+		{slog.NewTextHandler(io.Discard, &slog.HandlerOptions{AddSource: false}), false},
+		{slog.NewJSONHandler(io.Discard, &slog.HandlerOptions{AddSource: true}), true},
+		{slog.NewJSONHandler(io.Discard, &slog.HandlerOptions{AddSource: false}), false},
+		{NewNanoHandler(io.Discard, Options{AddSource: true}), true},
+		{NewNanoHandler(io.Discard, Options{AddSource: false}), false},
+		{NewTextHandler(io.Discard, Options{AddSource: true}), true},
+		{NewTextHandler(io.Discard, Options{AddSource: false}), false},
+		{NewJsonHandler(io.Discard, Options{AddSource: true}), true},
+		{NewJsonHandler(io.Discard, Options{AddSource: false}), false},
 	}
-	for _, test := range tests {
-		if test.opts.IsDebug() != test.wantD {
-			t.Errorf("%v.IsDebug() = %v, want %v", test.opts, test.opts.IsDebug(), test.wantD)
-		}
-		if test.opts.IsColorful() != test.wantC {
-			t.Errorf("%v.IsColorful() = %v, want %v", test.opts, test.opts.IsColorful(), test.wantC)
-		}
-		if test.opts.IsAddSource() != test.wantA {
-			t.Errorf("%v.IsAddSource() = %v, want %v", test.opts, test.opts.IsAddSource(), test.wantA)
+	for i, test := range tests {
+		if got := tryIsAddSource(test.handler); got != test.want {
+			t.Errorf("%d.tryIsAddSource(%T) = %v, want %v", i, test.handler, got, test.want)
 		}
 	}
 }
@@ -72,6 +54,25 @@ func (lv slogLV) LogValue() slog.Value {
 var (
 	tmpAttrs    = []slog.Attr{slog.String("a", "one"), slog.Int("b", 2), slog.Duration("c", time.Millisecond)}
 	tmpPreAttrs = []slog.Attr{slog.Int("pre", 3), slog.String("x", "y")}
+
+	levelTests = []struct {
+		opts  slog.Level
+		input slog.Level
+		want  bool
+	}{
+		{LevelDebug, LevelDebug, true},
+		{LevelDebug, LevelInfo, true},
+		{LevelDebug, LevelWarn, true},
+		{LevelDebug, LevelError, true},
+		{LevelInfo, LevelDebug, false},
+		{LevelInfo, LevelInfo, true},
+		{LevelInfo, LevelWarn, true},
+		{LevelInfo, LevelError, true},
+		{LevelError, LevelDebug, false},
+		{LevelError, LevelWarn, false},
+		{LevelError, LevelError, true},
+		{LevelError, LevelFatal, true},
+	}
 
 	handlerTests = []struct {
 		name      string

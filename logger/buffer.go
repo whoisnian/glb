@@ -40,26 +40,24 @@ const smallsString = "00010203040506070809" +
 
 // 0 <= i <= 9
 func appendIntWidth1(buf *[]byte, i int) {
-	*buf = append(*buf, smallsString[i*2+1])
+	*buf = append(*buf, '0'+byte(i))
 }
 
 // 00 <= i <= 99
 func appendIntWidth2(buf *[]byte, i int) {
-	*buf = append(*buf, smallsString[i*2:i*2+2]...)
+	*buf = append(*buf, smallsString[i*2], smallsString[i*2+1])
 }
 
 // 000 <= i <= 999
 func appendIntWidth3(buf *[]byte, i int) {
-	l := i / 100
-	i -= l * 100
-	*buf = append(*buf, smallsString[l*2+1])
-	*buf = append(*buf, smallsString[i*2:i*2+2]...)
+	l2 := i / 100 * 2
+	i2 := i + i - l2*100
+	*buf = append(*buf, smallsString[l2+1], smallsString[i2], smallsString[i2+1])
 }
 
 // 0000 <= i <= 9999
 func appendIntWidth4(buf *[]byte, i int) {
-	l := i / 100
-	i -= l * 100
-	*buf = append(*buf, smallsString[l*2:l*2+2]...)
-	*buf = append(*buf, smallsString[i*2:i*2+2]...)
+	l2 := i / 100 * 2
+	i2 := i + i - l2*100
+	*buf = append(*buf, smallsString[l2], smallsString[l2+1], smallsString[i2], smallsString[i2+1])
 }

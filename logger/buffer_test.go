@@ -84,3 +84,58 @@ func TestAppendIntWidth4(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkAppendIntWidth1(b *testing.B) {
+	buf, input := make([]byte, 8), 0
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		buf = buf[:0]
+		appendIntWidth1(&buf, input)
+		input += 1
+		if input == 10 {
+			input = 0
+		}
+	}
+}
+func BenchmarkAppendIntWidth2(b *testing.B) {
+	buf, input := make([]byte, 8), 0
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		buf = buf[:0]
+		appendIntWidth2(&buf, input)
+		input += 1
+		if input == 100 {
+			input = 0
+		}
+	}
+}
+
+func BenchmarkAppendIntWidth3(b *testing.B) {
+	buf, input := make([]byte, 8), 0
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		buf = buf[:0]
+		appendIntWidth3(&buf, input)
+		input += 1
+		if input == 1000 {
+			input = 0
+		}
+	}
+}
+
+func BenchmarkAppendIntWidth4(b *testing.B) {
+	buf, input := make([]byte, 8), 0
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		buf = buf[:0]
+		appendIntWidth4(&buf, input)
+		input += 1
+		if input == 10000 {
+			input = 0
+		}
+	}
+}

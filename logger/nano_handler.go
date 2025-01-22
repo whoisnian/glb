@@ -16,7 +16,10 @@ import (
 
 // NanoHandler formats slog.Record as a sequence of value strings without attribute keys to minimize log length.
 type NanoHandler struct {
-	*Options
+	level     slog.Level
+	colorful  bool
+	addSource bool
+
 	outMu *sync.Mutex
 	out   io.Writer
 
@@ -25,39 +28,53 @@ type NanoHandler struct {
 
 // NewNanoHandler creates a new NanoHandler with the given io.Writer and Options.
 // The Options should not be changed after first use.
-func NewNanoHandler(w io.Writer, opts *Options) *NanoHandler {
+func NewNanoHandler(w io.Writer, opts Options) *NanoHandler {
 	return &NanoHandler{
-		Options: opts,
-		outMu:   &sync.Mutex{},
-		out:     w,
+		level:     opts.Level,
+		colorful:  opts.Colorful,
+		addSource: opts.AddSource,
+		outMu:     &sync.Mutex{},
+		out:       w,
 	}
 }
 
 func (h *NanoHandler) clone() *NanoHandler {
 	return &NanoHandler{
-		Options:      h.Options,
+		level:        h.level,
+		colorful:     h.colorful,
+		addSource:    h.addSource,
 		outMu:        h.outMu,
 		out:          h.out,
 		preformatted: slices.Clip(h.preformatted),
 	}
 }
 
+// Enabled reports whether the given level is enabled.
+func (h *NanoHandler) Enabled(_ context.Context, l slog.Level) bool {
+	return l >= h.level
+}
+
+// IsAddSource reports whether the handler adds source info.
+func (h *NanoHandler) IsAddSource() bool {
+	return h.addSource
+}
+
 // WithAttrs returns a new NanoHandler whose attributes consists of h's attributes followed by attrs.
 // If attrs is empty, WithAttrs returns the origin NanoHandler.
-func (h *NanoHandler) WithAttrs(attrs []slog.Attr) Handler {
+func (h *NanoHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	if len(attrs) == 0 {
 		return h
 	}
 
 	h2 := h.clone()
 	for _, a := range attrs {
-		appendNanoValue(&h2.preformatted, a.Value, h.Options.colorful)
+		appendNanoValue(&h2.preformatted, a.Value, h2.colorful)
 	}
 	return h2
 }
 
 // WithGroup returns the origin NanoHandler because NanoHandler always ignores attribute keys.
-func (h *NanoHandler) WithGroup(name string) Handler {
+func (h *NanoHandler) WithGroup(name string) slog.Handler {
 	return h
 }
 
@@ -74,9 +91,9 @@ func (h *NanoHandler) Handle(_ context.Context, r slog.Record) error {
 	appendDateTime(buf, r.Time)
 	// level
 	*buf = append(*buf, ' ')
-	appendShortLevel(buf, r.Level, h.Options.colorful)
+	appendShortLevel(buf, r.Level, h.colorful)
 	// source
-	if h.Options.addSource && r.PC > 0 {
+	if h.addSource && r.PC > 0 {
 		*buf = append(*buf, ' ')
 		appendNanoSource(buf, r.PC)
 	}
@@ -92,7 +109,7 @@ func (h *NanoHandler) Handle(_ context.Context, r slog.Record) error {
 
 	if r.NumAttrs() > 0 {
 		r.Attrs(func(a slog.Attr) bool {
-			appendNanoValue(buf, a.Value, h.Options.colorful)
+			appendNanoValue(buf, a.Value, h.colorful)
 			return true
 		})
 	}
