@@ -1,52 +1,41 @@
 package logger
 
 import (
-	"context"
 	"log/slog"
+	"reflect"
 )
 
 // Options is the common options for all handlers.
 type Options struct {
-	level     slog.Level
-	colorful  bool
-	addSource bool
+	Level     slog.Level
+	Colorful  bool
+	AddSource bool
 }
 
-// NewOptions creates a new Options with the given level, colorful and addSource.
-func NewOptions(level slog.Level, colorful bool, addSource bool) *Options {
-	return &Options{level, colorful, addSource}
+func tryIsAddSource(h slog.Handler) (result bool) {
+	if hh, ok := h.(interface{ IsAddSource() bool }); ok {
+		return hh.IsAddSource()
+	}
+	result, _ = extractHandlerOptions(reflect.ValueOf(h))
+	return result
 }
 
-// Enabled reports whether the given level is enabled.
-func (opts *Options) Enabled(l slog.Level) bool {
-	return l >= opts.level
-}
-
-// IsDebug reports whether the handler is LevelDebug.
-func (opts *Options) IsDebug() bool {
-	return LevelDebug == opts.level
-}
-
-// IsColorful reports whether the handler enables colorful level labels.
-func (opts *Options) IsColorful() bool {
-	return opts.colorful
-}
-
-// IsAddSource reports whether the handler adds source info.
-func (opts *Options) IsAddSource() bool {
-	return opts.addSource
-}
-
-// Handler handles log records produced by a [Logger].
-//
-// Users should use the methods of Logger instead of invoking Handler methods directly.
-type Handler interface {
-	Enabled(slog.Level) bool
-	IsDebug() bool
-	IsColorful() bool
-	IsAddSource() bool
-
-	WithAttrs(attrs []slog.Attr) Handler
-	WithGroup(name string) Handler
-	Handle(context.Context, slog.Record) error
+func extractHandlerOptions(v reflect.Value) (result bool, ok bool) {
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+	if v.Kind() == reflect.Struct {
+		vt := v.Type()
+		if vt.Name() == "HandlerOptions" && vt.PkgPath() == "log/slog" {
+			if vv := v.FieldByName("AddSource"); vv.Kind() == reflect.Bool {
+				return vv.Bool(), true
+			}
+		}
+		for i := 0; i < v.NumField(); i++ {
+			if result, ok = extractHandlerOptions(v.Field(i)); ok {
+				return result, true
+			}
+		}
+	}
+	return true, false
 }

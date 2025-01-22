@@ -18,7 +18,10 @@ import (
 
 // JsonHandler formats slog.Record as line-delimited JSON objects.
 type JsonHandler struct {
-	*Options
+	level     slog.Level
+	colorful  bool
+	addSource bool
+
 	outMu *sync.Mutex
 	out   io.Writer
 
@@ -29,18 +32,22 @@ type JsonHandler struct {
 
 // NewJsonHandler creates a new JsonHandler with the given io.Writer and Options.
 // The Options should not be changed after first use.
-func NewJsonHandler(w io.Writer, opts *Options) *JsonHandler {
+func NewJsonHandler(w io.Writer, opts Options) *JsonHandler {
 	return &JsonHandler{
-		Options: opts,
-		outMu:   &sync.Mutex{},
-		out:     w,
-		addSep:  true,
+		level:     opts.Level,
+		colorful:  opts.Colorful,
+		addSource: opts.AddSource,
+		outMu:     &sync.Mutex{},
+		out:       w,
+		addSep:    true,
 	}
 }
 
 func (h *JsonHandler) clone() *JsonHandler {
 	return &JsonHandler{
-		Options:      h.Options,
+		level:        h.level,
+		colorful:     h.colorful,
+		addSource:    h.addSource,
 		outMu:        h.outMu,
 		out:          h.out,
 		preformatted: slices.Clip(h.preformatted),
@@ -49,16 +56,26 @@ func (h *JsonHandler) clone() *JsonHandler {
 	}
 }
 
+// Enabled reports whether the given level is enabled.
+func (h *JsonHandler) Enabled(_ context.Context, l slog.Level) bool {
+	return l >= h.level
+}
+
+// IsAddSource reports whether the handler adds source info.
+func (h *JsonHandler) IsAddSource() bool {
+	return h.addSource
+}
+
 // WithAttrs returns a new JsonHandler whose attributes consists of h's attributes followed by attrs.
 // If attrs is empty, WithAttrs returns the origin JsonHandler.
-func (h *JsonHandler) WithAttrs(attrs []slog.Attr) Handler {
+func (h *JsonHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	if len(attrs) == 0 {
 		return h
 	}
 
 	h2 := h.clone()
 	for _, a := range attrs {
-		appendJsonAttr(&h2.preformatted, a, h2.addSep, h2.Options.colorful)
+		appendJsonAttr(&h2.preformatted, a, h2.addSep, h2.colorful)
 		h2.addSep = true
 	}
 	return h2
@@ -66,7 +83,7 @@ func (h *JsonHandler) WithAttrs(attrs []slog.Attr) Handler {
 
 // WithGroup returns a new JsonHandler that starts a group with the given name.
 // If name is empty, WithGroup returns the origin JsonHandler.
-func (h *JsonHandler) WithGroup(name string) Handler {
+func (h *JsonHandler) WithGroup(name string) slog.Handler {
 	h2 := h.clone()
 	if h2.addSep {
 		h2.preformatted = append(h2.preformatted, ',', '"')
@@ -100,10 +117,10 @@ func (h *JsonHandler) Handle(_ context.Context, r slog.Record) error {
 	*buf = append(*buf, '"', ',', '"')
 	*buf = append(*buf, slog.LevelKey...)
 	*buf = append(*buf, '"', ':', '"')
-	appendFullLevel(buf, r.Level, h.Options.colorful)
+	appendFullLevel(buf, r.Level, h.colorful)
 	*buf = append(*buf, '"')
 	// source
-	if h.Options.addSource {
+	if h.addSource {
 		*buf = append(*buf, ',', '"')
 		*buf = append(*buf, slog.SourceKey...)
 		*buf = append(*buf, '"', ':', '{')
@@ -124,7 +141,7 @@ func (h *JsonHandler) Handle(_ context.Context, r slog.Record) error {
 	if r.NumAttrs() > 0 {
 		addSep := h.addSep
 		r.Attrs(func(a slog.Attr) bool {
-			appendJsonAttr(buf, a, addSep, h.Options.colorful)
+			appendJsonAttr(buf, a, addSep, h.colorful)
 			addSep = true
 			return true
 		})
