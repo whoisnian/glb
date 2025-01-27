@@ -200,7 +200,7 @@ func TestAppendTextAttr(t *testing.T) {
 		{slog.Any("map", map[string]string{"name": "a b"}), ` map="map[name:a b]"`},
 		{slog.Any("e", errors.New("io error")), ` e="io error"`},
 		{slog.Any("e", io.EOF), ` e=EOF`},
-		{slog.Any("t", textM{""}), ` t=EMPTY`},
+		{slog.Any("t", textM{""}), ` t=!ERROR:EMPTY`},
 		{slog.Any("t", textM{"value"}), ` t=TEXT{value}`},
 		{slog.Any("as", AnsiString{ansi.RedFG, "test"}), " as=test"},
 		{slog.Any("as", AnsiString{ansi.RedFG, "test"}), " as=\x1b[31mtest\x1b[0m"},

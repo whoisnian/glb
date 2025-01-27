@@ -236,11 +236,7 @@ func appendJsonMarshal(buf *[]byte, v any) {
 	enc.SetEscapeHTML(false)
 	if err := enc.Encode(v); err != nil {
 		*buf = append(*buf, '"')
-		if u, ok := err.(interface{ Unwrap() error }); ok {
-			appendJsonString(buf, u.Unwrap().Error())
-		} else {
-			appendJsonString(buf, err.Error())
-		}
+		appendJsonString(buf, "!ERROR:"+err.Error())
 		*buf = append(*buf, '"')
 		return
 	}

@@ -212,7 +212,7 @@ func appendTextValue(buf *[]byte, v slog.Value, colorful bool) {
 		va := v.Any()
 		if vv, ok := va.(encoding.TextMarshaler); ok {
 			if data, err := vv.MarshalText(); err != nil {
-				appendTextString(buf, err.Error())
+				appendTextString(buf, "!ERROR:"+err.Error())
 			} else {
 				appendTextString(buf, string(data))
 			}
