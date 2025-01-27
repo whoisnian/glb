@@ -204,11 +204,13 @@ func TestAppendTextAttr(t *testing.T) {
 		{slog.Any("t", textM{"value"}), ` t=TEXT{value}`},
 		{slog.Any("as", AnsiString{ansi.RedFG, "test"}), " as=test"},
 		{slog.Any("as", AnsiString{ansi.RedFG, "test"}), " as=\x1b[31mtest\x1b[0m"},
+		{slog.Any("e", io.EOF), " e=\x1b[31mEOF\x1b[0m"},
+		{Error(io.EOF), " error=\x1b[31mEOF\x1b[0m"},
 	}
 	buf := make([]byte, 32)
 	for i, test := range tests {
 		buf = buf[:0]
-		appendTextAttr(&buf, test.input, &[]byte{}, i == len(tests)-1)
+		appendTextAttr(&buf, test.input, &[]byte{}, i >= len(tests)-3)
 
 		got := string(buf)
 		if got != test.want {

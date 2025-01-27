@@ -212,7 +212,13 @@ func appendJsonValue(buf *[]byte, v slog.Value, colorful bool) {
 			appendJsonMarshal(buf, va)
 		} else if vv, ok := va.(error); ok {
 			*buf = append(*buf, '"')
-			appendJsonString(buf, vv.Error())
+			if colorful {
+				*buf = append(*buf, ansi.RedFG...)
+				appendJsonString(buf, vv.Error())
+				*buf = append(*buf, ansi.Reset...)
+			} else {
+				appendJsonString(buf, vv.Error())
+			}
 			*buf = append(*buf, '"')
 		} else if vv, ok := va.(AnsiString); ok {
 			*buf = append(*buf, '"')

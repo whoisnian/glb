@@ -220,11 +220,13 @@ func TestAppendJsonAttr(t *testing.T) {
 		{slog.Any("t", jsonM{"value"}), `"t":"JSON{value}"`},
 		{slog.Any("as", AnsiString{ansi.RedFG, "test"}), `"as":"test"`},
 		{slog.Any("as", AnsiString{ansi.RedFG, "test"}), "\"as\":\"\x1b[31mtest\x1b[0m\""},
+		{slog.Any("e", io.EOF), "\"e\":\"\x1b[31mEOF\x1b[0m\""},
+		{Error(io.EOF), "\"error\":\"\x1b[31mEOF\x1b[0m\""},
 	}
 	buf := make([]byte, 32)
 	for i, test := range tests {
 		buf = buf[:0]
-		appendJsonAttr(&buf, test.input, false, i == len(tests)-1)
+		appendJsonAttr(&buf, test.input, false, i >= len(tests)-3)
 
 		got := string(buf)
 		if got != test.want {

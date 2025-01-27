@@ -237,6 +237,10 @@ func (l *Logger) logAttrs(ctx context.Context, level slog.Level, msg string, att
 	return l.handler.Handle(ctx, r)
 }
 
+func Error(err error) slog.Attr {
+	return slog.Any("error", err)
+}
+
 type AnsiString struct {
 	Prefix string
 	Value  string

@@ -3,6 +3,7 @@ package logger
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"regexp"
@@ -182,15 +183,19 @@ func TestAppendNanoValue(t *testing.T) {
 			slog.String("method", "GET"),
 			slog.Int("code", 200),
 		), " GET 200"},
+		{slog.AnyValue(errors.New("io error")), " io error"},
+		{slog.AnyValue(io.EOF), " EOF"},
 		{slog.AnyValue([]byte("test")), " [116 101 115 116]"},
 		{slog.AnyValue(map[string]int{"age": 18}), " map[age:18]"},
 		{slog.AnyValue(AnsiString{ansi.RedFG, "test"}), " test"},
 		{slog.AnyValue(AnsiString{ansi.RedFG, "test"}), " \x1b[31mtest\x1b[0m"},
+		{slog.AnyValue(errors.New("io error")), " \x1b[31mio error\x1b[0m"},
+		{slog.AnyValue(io.EOF), " \x1b[31mEOF\x1b[0m"},
 	}
 	buf := make([]byte, 32)
 	for i, test := range tests {
 		buf = buf[:0]
-		appendNanoValue(&buf, test.input, i == len(tests)-1)
+		appendNanoValue(&buf, test.input, i >= len(tests)-3)
 
 		got := string(buf)
 		if got != test.want {

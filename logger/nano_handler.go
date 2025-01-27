@@ -148,7 +148,15 @@ func appendNanoValue(buf *[]byte, v slog.Value, colorful bool) {
 		*buf = v.Time().AppendFormat(*buf, time.RFC3339)
 	case slog.KindAny, slog.KindLogValuer:
 		va := v.Any()
-		if vv, ok := va.(AnsiString); ok {
+		if vv, ok := va.(error); ok {
+			if colorful {
+				*buf = append(*buf, ansi.RedFG...)
+				*buf = append(*buf, vv.Error()...)
+				*buf = append(*buf, ansi.Reset...)
+			} else {
+				*buf = append(*buf, vv.Error()...)
+			}
+		} else if vv, ok := va.(AnsiString); ok {
 			if colorful && vv.Prefix != "" {
 				*buf = append(*buf, vv.Prefix...)
 				*buf = append(*buf, vv.Value...)

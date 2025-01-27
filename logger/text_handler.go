@@ -216,10 +216,16 @@ func appendTextValue(buf *[]byte, v slog.Value, colorful bool) {
 			} else {
 				appendTextString(buf, string(data))
 			}
-		} else if vv, ok := va.(error); ok {
-			appendTextString(buf, vv.Error())
 		} else if vv, ok := va.([]byte); ok {
 			appendTextString(buf, string(vv))
+		} else if vv, ok := va.(error); ok {
+			if colorful {
+				*buf = append(*buf, ansi.RedFG...)
+				appendTextString(buf, vv.Error())
+				*buf = append(*buf, ansi.Reset...)
+			} else {
+				appendTextString(buf, vv.Error())
+			}
 		} else if vv, ok := va.(AnsiString); ok {
 			if colorful && vv.Prefix != "" {
 				*buf = append(*buf, vv.Prefix...)
