@@ -32,7 +32,7 @@ func TestRoute(t *testing.T) {
 	root := new(treeNode)
 	var maxParams int = 0
 	for _, tt := range tests {
-		info := newRouteInfo(tt.path, tt.method, func(*Store) {})
+		info := newRouteInfo(tt.path, tt.method, func(*Store) {}, &[]HandlerFunc{})
 		paramsCnt, err := parseRoute(root, tt.path, tt.method, info)
 		if err != nil {
 			t.Fatalf("parseRoute: %v", err)
@@ -84,7 +84,7 @@ func TestRouteParam(t *testing.T) {
 	root := new(treeNode)
 	var maxParams int = 0
 	for _, tt := range tests {
-		info := newRouteInfo(tt.path, tt.method, func(*Store) {})
+		info := newRouteInfo(tt.path, tt.method, func(*Store) {}, &[]HandlerFunc{})
 		paramsCnt, err := parseRoute(root, tt.path, tt.method, info)
 		if err != nil {
 			t.Fatalf("parseRoute: %v", err)

@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/whoisnian/glb/util/netutil"
-	"github.com/whoisnian/glb/util/strutil"
 )
 
 // Params consists of a pair of key-value slice.
@@ -71,7 +70,17 @@ type Store struct {
 	P *Params
 	I *RouteInfo
 
-	id []byte
+	mwIndex int
+}
+
+// Next should be used only in middleware to call the next middleware or handler.
+func (store *Store) Next() {
+	store.mwIndex++
+	if store.mwIndex < len(*store.I.Middlewares) {
+		(*store.I.Middlewares)[store.mwIndex](store)
+	} else if store.mwIndex == len(*store.I.Middlewares) {
+		store.I.HandlerFunc(store)
+	}
 }
 
 type HandlerFunc func(*Store)
@@ -79,11 +88,6 @@ type HandlerFunc func(*Store)
 // CreateHandler converts 'http.HandlerFunc' to 'httpd.HandlerFunc'.
 func CreateHandler(httpHandler http.HandlerFunc) HandlerFunc {
 	return func(store *Store) { httpHandler(store.W, store.R) }
-}
-
-// GetID returns the Store's ID like FVHNU2LS-gjdgxz.
-func (store *Store) GetID() string {
-	return strutil.UnsafeBytesToString(store.id)
 }
 
 // GetClientIP looks for possible client IP by the following order:

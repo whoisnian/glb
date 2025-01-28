@@ -19,18 +19,20 @@ type RouteInfo struct {
 	Method      string
 	HandlerName string
 	HandlerFunc HandlerFunc
+	Middlewares *[]HandlerFunc
 }
 
 func nameOfFunc(f any) string {
 	return runtime.FuncForPC(reflect.ValueOf(f).Pointer()).Name()
 }
 
-func newRouteInfo(path string, method string, handler HandlerFunc) *RouteInfo {
+func newRouteInfo(path string, method string, handler HandlerFunc, middlewares *[]HandlerFunc) *RouteInfo {
 	return &RouteInfo{
 		Path:        path,
 		Method:      method,
 		HandlerName: nameOfFunc(handler),
 		HandlerFunc: handler,
+		Middlewares: middlewares,
 	}
 }
 

@@ -1,11 +1,8 @@
 package httpd_test
 
 import (
-	"fmt"
 	"net/http"
 	"net/url"
-	"regexp"
-	"strconv"
 	"testing"
 
 	"github.com/whoisnian/glb/httpd"
@@ -37,7 +34,7 @@ func TestHandlePanic(t *testing.T) {
 	}
 }
 
-func TestHandleRelay(t *testing.T) {
+func TestHandleMiddleware(t *testing.T) {
 	tests := []struct {
 		path    string
 		method  string
@@ -49,10 +46,23 @@ func TestHandleRelay(t *testing.T) {
 		{"/aa/bb", http.MethodDelete, "delete /aa/bb"},
 	}
 
-	mark := "TestHandleRelay: "
+	mark0 := "TestHandleMiddleware"
+	mark1st := mark0 + "_1st_ "
+	mark1ed := mark0 + "_1ed_ "
+	mark2st := mark0 + "_2st_ "
+	mark2ed := mark0 + "_2ed_ "
 
 	mux := httpd.NewMux()
-	mux.HandleRelay(func(s *httpd.Store) { s.W.Write([]byte(mark)); s.I.HandlerFunc(s) })
+	mux.HandleMiddleware(func(s *httpd.Store) {
+		s.W.Write([]byte(mark1st))
+		s.Next()
+		s.W.Write([]byte(mark1ed))
+	})
+	mux.HandleMiddleware(func(s *httpd.Store) {
+		s.W.Write([]byte(mark2st))
+		s.Next()
+		s.W.Write([]byte(mark2ed))
+	})
 	for _, tt := range tests {
 		data := []byte(tt.content)
 		mux.Handle(tt.path, tt.method, func(s *httpd.Store) { s.W.Write(data) })
@@ -65,8 +75,8 @@ func TestHandleRelay(t *testing.T) {
 
 		w := &fakeResponseWriter{header: make(http.Header)}
 		mux.ServeHTTP(w, &http.Request{Method: tt.method, URL: u})
-		if w.buf.String() != mark+tt.content {
-			t.Fatalf("ServeHTTP(%q) return %q, want %q", tt.path, w.buf.String(), mark+tt.content)
+		if want := mark1st + mark2st + tt.content + mark2ed + mark1ed; w.buf.String() != want {
+			t.Fatalf("ServeHTTP(%q) return %q, want %q", tt.path, w.buf.String(), want)
 		}
 	}
 }
@@ -104,37 +114,38 @@ func TestHandleNoRoute(t *testing.T) {
 	}
 }
 
-func testRouteInfo0(s *httpd.Store) { fmt.Fprintf(s.W, "%v", *s.I) }
-func testRouteInfo1(s *httpd.Store) { fmt.Fprintf(s.W, "%v", *s.I) }
-func testRouteInfo2(s *httpd.Store) { fmt.Fprintf(s.W, "%v", *s.I) }
-func testRouteInfo3(s *httpd.Store) { fmt.Fprintf(s.W, "%v", *s.I) }
-func testRouteInfo4(s *httpd.Store) { fmt.Fprintf(s.W, "%v", *s.I) }
-func testRouteInfo5(s *httpd.Store) { fmt.Fprintf(s.W, "%v", *s.I) }
+func routeInfoStr(r httpd.RouteInfo) string { return r.Path + r.Method + r.HandlerName }
+func testRouteInfo0(s *httpd.Store)         { s.W.Write([]byte(routeInfoStr(*s.I))) }
+func testRouteInfo1(s *httpd.Store)         { s.W.Write([]byte(routeInfoStr(*s.I))) }
+func testRouteInfo2(s *httpd.Store)         { s.W.Write([]byte(routeInfoStr(*s.I))) }
+func testRouteInfo3(s *httpd.Store)         { s.W.Write([]byte(routeInfoStr(*s.I))) }
+func testRouteInfo4(s *httpd.Store)         { s.W.Write([]byte(routeInfoStr(*s.I))) }
+func testRouteInfo5(s *httpd.Store)         { s.W.Write([]byte(routeInfoStr(*s.I))) }
 
 func TestRouteInfo(t *testing.T) {
 	routes := []httpd.RouteInfo{
-		{"", "", "github.com/whoisnian/glb/httpd_test.testRouteInfo0", testRouteInfo0},
-		{"/aaa", http.MethodGet, "github.com/whoisnian/glb/httpd_test.testRouteInfo1", testRouteInfo1},
-		{"/aaa", httpd.MethodAll, "github.com/whoisnian/glb/httpd_test.testRouteInfo2", testRouteInfo2},
-		{"/bbb/:id", http.MethodPost, "github.com/whoisnian/glb/httpd_test.testRouteInfo3", testRouteInfo3},
-		{"/ccc/*", http.MethodPut, "github.com/whoisnian/glb/httpd_test.testRouteInfo4", testRouteInfo4},
-		{"/ccc/ddd", http.MethodPut, "github.com/whoisnian/glb/httpd_test.testRouteInfo5", testRouteInfo5},
+		{"", httpd.MethodAll, "github.com/whoisnian/glb/httpd_test.testRouteInfo0", testRouteInfo0, &[]httpd.HandlerFunc{}},
+		{"/aaa", http.MethodGet, "github.com/whoisnian/glb/httpd_test.testRouteInfo1", testRouteInfo1, &[]httpd.HandlerFunc{}},
+		{"/aaa", httpd.MethodAll, "github.com/whoisnian/glb/httpd_test.testRouteInfo2", testRouteInfo2, &[]httpd.HandlerFunc{}},
+		{"/bbb/:id", http.MethodPost, "github.com/whoisnian/glb/httpd_test.testRouteInfo3", testRouteInfo3, &[]httpd.HandlerFunc{}},
+		{"/ccc/*", http.MethodPut, "github.com/whoisnian/glb/httpd_test.testRouteInfo4", testRouteInfo4, &[]httpd.HandlerFunc{}},
+		{"/ccc/ddd", http.MethodPut, "github.com/whoisnian/glb/httpd_test.testRouteInfo5", testRouteInfo5, &[]httpd.HandlerFunc{}},
 	}
 	tests := []struct {
 		url    string
 		method string
 		want   string
 	}{
-		{"/", http.MethodGet, fmt.Sprintf("%v", routes[0])},
-		{"/aaa", http.MethodGet, fmt.Sprintf("%v", routes[1])},
-		{"/aaa", http.MethodPost, fmt.Sprintf("%v", routes[2])},
-		{"/bbb", http.MethodPost, fmt.Sprintf("%v", routes[0])},
-		{"/bbb/10", http.MethodPost, fmt.Sprintf("%v", routes[3])},
-		{"/ccc", http.MethodPut, fmt.Sprintf("%v", routes[0])},
-		{"/ccc/", http.MethodPut, fmt.Sprintf("%v", routes[4])},
-		{"/ccc/10", http.MethodPut, fmt.Sprintf("%v", routes[4])},
-		{"/ccc/ddd", http.MethodPut, fmt.Sprintf("%v", routes[5])},
-		{"/eee", http.MethodGet, fmt.Sprintf("%v", routes[0])},
+		{"/", http.MethodGet, routeInfoStr(routes[0])},
+		{"/aaa", http.MethodGet, routeInfoStr(routes[1])},
+		{"/aaa", http.MethodPost, routeInfoStr(routes[2])},
+		{"/bbb", http.MethodPost, routeInfoStr(routes[0])},
+		{"/bbb/10", http.MethodPost, routeInfoStr(routes[3])},
+		{"/ccc", http.MethodPut, routeInfoStr(routes[0])},
+		{"/ccc/", http.MethodPut, routeInfoStr(routes[4])},
+		{"/ccc/10", http.MethodPut, routeInfoStr(routes[4])},
+		{"/ccc/ddd", http.MethodPut, routeInfoStr(routes[5])},
+		{"/eee", http.MethodGet, routeInfoStr(routes[0])},
 	}
 	mux := httpd.NewMux()
 	mux.HandleNoRoute(testRouteInfo0)
@@ -152,23 +163,6 @@ func TestRouteInfo(t *testing.T) {
 		mux.ServeHTTP(w, &http.Request{Method: tt.method, URL: u})
 		if w.buf.String() != tt.want {
 			t.Fatalf("RouteInfo return %s, want %s", w.buf.String(), tt.want)
-		}
-	}
-}
-
-func TestStoreID(t *testing.T) {
-	mux := httpd.NewMux()
-	mux.Handle("/test", http.MethodGet, func(s *httpd.Store) { s.W.Write([]byte(s.GetID())) })
-
-	prefix := "[2-7A-Z]{8}-"
-	for i := int64(1); i < 1024; i++ {
-		u, _ := url.ParseRequestURI("/test")
-		w := &fakeResponseWriter{header: make(http.Header)}
-		mux.ServeHTTP(w, &http.Request{Method: http.MethodGet, URL: u})
-
-		want := prefix + strconv.FormatInt(i, 36)
-		if !regexp.MustCompile(want).Match(w.buf.Bytes()) {
-			t.Fatalf("StoreID should match %q is %q", want, w.buf.String())
 		}
 	}
 }
