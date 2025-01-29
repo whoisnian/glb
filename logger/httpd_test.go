@@ -11,8 +11,6 @@ import (
 	"github.com/whoisnian/glb/httpd"
 )
 
-const reTid = `[2-7A-Z]{8}-[0-9a-z]{0,13}`
-
 func requestDiscard(t *testing.T, method string, url string) {
 	req, err := http.NewRequest(method, url, nil)
 	if err != nil {
@@ -30,7 +28,7 @@ func TestRelay4(t *testing.T) {
 	var l *Logger = New(NewTextHandler(&buf, Options{LevelInfo, false, false}))
 
 	mux := httpd.NewMux()
-	mux.HandleRelay(l.Relay)
+	mux.HandleMiddleware(l.NewMiddleware())
 	mux.Handle("/200", http.MethodGet, func(s *httpd.Store) { s.W.WriteHeader(200) })
 	mux.Handle("/400", http.MethodPost, func(s *httpd.Store) { s.W.WriteHeader(400) })
 	mux.Handle("/403", http.MethodPut, func(s *httpd.Store) { s.W.WriteHeader(403) })
@@ -61,9 +59,9 @@ func TestRelay4(t *testing.T) {
 		buf.Reset()
 		requestDiscard(t, test.method, "http://"+server.Addr+test.path)
 
-		l := `time=` + reTextTime + ` level=INFO msg="" `
-		r := `ip=127.0.0.1 method=` + test.method + ` path=` + test.path + ` tid=` + reTid + `\n`
-		re := `^` + l + `tag=REQ_BEG ` + r + l + `tag=REQ_END code=` + test.code + ` dur=[0-9]+ ` + r + `$`
+		reL := `time=` + reTextTime + ` level=INFO msg="" `
+		reR := `request.ip=127.0.0.1 request.method=` + test.method + ` request.path=` + test.path + `\n`
+		re := `^` + reL + `request.tag=REQ_BEG ` + reR + reL + `request.tag=REQ_END request.code=` + test.code + ` request.dur=[0-9]+ ` + reR + `$`
 		if !regexp.MustCompile(re).Match(buf.Bytes()) {
 			t.Fatalf("request log should match %q is %q", re, buf.Bytes())
 		}
@@ -75,7 +73,7 @@ func TestRelay6(t *testing.T) {
 	var l *Logger = New(NewTextHandler(&buf, Options{LevelInfo, false, false}))
 
 	mux := httpd.NewMux()
-	mux.HandleRelay(l.Relay)
+	mux.HandleMiddleware(l.NewMiddleware())
 	mux.Handle("/200", http.MethodGet, func(s *httpd.Store) { s.W.WriteHeader(200) })
 	mux.Handle("/400", http.MethodPost, func(s *httpd.Store) { s.W.WriteHeader(400) })
 	mux.Handle("/403", http.MethodPut, func(s *httpd.Store) { s.W.WriteHeader(403) })
@@ -107,8 +105,8 @@ func TestRelay6(t *testing.T) {
 		requestDiscard(t, test.method, "http://"+server.Addr+test.path)
 
 		reL := `time=` + reTextTime + ` level=INFO msg="" `
-		reR := `ip=::1 method=` + test.method + ` path=` + test.path + ` tid=` + reTid + `\n`
-		re := `^` + reL + `tag=REQ_BEG ` + reR + reL + `tag=REQ_END code=` + test.code + ` dur=[0-9]+ ` + reR + `$`
+		reR := `request.ip=::1 request.method=` + test.method + ` request.path=` + test.path + `\n`
+		re := `^` + reL + `request.tag=REQ_BEG ` + reR + reL + `request.tag=REQ_END request.code=` + test.code + ` request.dur=[0-9]+ ` + reR + `$`
 		if !regexp.MustCompile(re).Match(buf.Bytes()) {
 			t.Fatalf("request log should match %q is %q", re, buf.Bytes())
 		}
@@ -120,7 +118,7 @@ func TestRelayRecover(t *testing.T) {
 	var l *Logger = New(NewTextHandler(&buf, Options{LevelInfo, false, false}))
 
 	mux := httpd.NewMux()
-	mux.HandleRelay(l.Relay)
+	mux.HandleMiddleware(l.NewMiddleware())
 	mux.Handle("/panic", http.MethodGet, func(s *httpd.Store) { panic("expected") })
 
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
@@ -134,10 +132,10 @@ func TestRelayRecover(t *testing.T) {
 	requestDiscard(t, http.MethodGet, "http://"+server.Addr+"/panic")
 
 	reL := `time=` + reTextTime + ` level=INFO msg="" `
-	reR := `ip=127.0.0.1 method=` + http.MethodGet + ` path=/panic tid=` + reTid + `\n`
-	re := `^` + reL + `tag=REQ_BEG ` + reR +
-		`time=` + reTextTime + ` level=ERROR msg="goroutine[^"]+" panic=expected tid=` + reTid + `\n` +
-		reL + `tag=REQ_END code=500 dur=[0-9]+ ` + reR + `$`
+	reR := `request.ip=127.0.0.1 request.method=` + http.MethodGet + ` request.path=/panic\n`
+	re := `^` + reL + `request.tag=REQ_BEG ` + reR +
+		`time=` + reTextTime + ` level=ERROR msg="goroutine[^"]+" request.panic=expected\n` +
+		reL + `request.tag=REQ_END request.code=500 request.dur=[0-9]+ ` + reR + `$`
 	if !regexp.MustCompile(re).Match(buf.Bytes()) {
 		t.Fatalf("request log should match %q is %q", re, buf.Bytes())
 	}
