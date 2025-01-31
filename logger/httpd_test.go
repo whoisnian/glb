@@ -60,7 +60,7 @@ func TestRelay4(t *testing.T) {
 		requestDiscard(t, test.method, "http://"+server.Addr+test.path)
 
 		reL := `time=` + reTextTime + ` level=INFO msg="" `
-		reR := `request.ip=127.0.0.1 request.method=` + test.method + ` request.path=` + test.path + `\n`
+		reR := `request.ip=127.0.0.1 request.method=` + test.method + ` request.path=` + test.path + ` request.query=""\n`
 		re := `^` + reL + `request.tag=REQ_BEG ` + reR + reL + `request.tag=REQ_END request.code=` + test.code + ` request.dur=[0-9]+ ` + reR + `$`
 		if !regexp.MustCompile(re).Match(buf.Bytes()) {
 			t.Fatalf("request log should match %q is %q", re, buf.Bytes())
@@ -105,7 +105,7 @@ func TestRelay6(t *testing.T) {
 		requestDiscard(t, test.method, "http://"+server.Addr+test.path)
 
 		reL := `time=` + reTextTime + ` level=INFO msg="" `
-		reR := `request.ip=::1 request.method=` + test.method + ` request.path=` + test.path + `\n`
+		reR := `request.ip=::1 request.method=` + test.method + ` request.path=` + test.path + ` request.query=""\n`
 		re := `^` + reL + `request.tag=REQ_BEG ` + reR + reL + `request.tag=REQ_END request.code=` + test.code + ` request.dur=[0-9]+ ` + reR + `$`
 		if !regexp.MustCompile(re).Match(buf.Bytes()) {
 			t.Fatalf("request log should match %q is %q", re, buf.Bytes())
@@ -132,11 +132,11 @@ func TestRelayRecover(t *testing.T) {
 	requestDiscard(t, http.MethodGet, "http://"+server.Addr+"/panic")
 
 	reL := `time=` + reTextTime + ` level=INFO msg="" `
-	reR := `request.ip=127.0.0.1 request.method=` + http.MethodGet + ` request.path=/panic\n`
+	reR := `request.ip=127.0.0.1 request.method=` + http.MethodGet + ` request.path=/panic request.query=""\n`
 	re := `^` + reL + `request.tag=REQ_BEG ` + reR +
-		`time=` + reTextTime + ` level=ERROR msg="goroutine[^"]+" request.panic=expected\n` +
+		`time=` + reTextTime + ` level=ERROR msg="Recover from panic" request.panic=expected request.stack="goroutine[^"]+" request.raw="GET /panic HTTP/1.1[^"]+"\n` +
 		reL + `request.tag=REQ_END request.code=500 request.dur=[0-9]+ ` + reR + `$`
 	if !regexp.MustCompile(re).Match(buf.Bytes()) {
-		t.Fatalf("request log should match %q is %q", re, buf.Bytes())
+		t.Fatalf("request log should match %s is %s", re, buf.Bytes())
 	}
 }
