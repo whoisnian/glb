@@ -17,6 +17,8 @@ func (noopHandler) Handle(context.Context, slog.Record) error { return nil }
 func (noopHandler) WithAttrs([]slog.Attr) slog.Handler        { return noopHandler{} }
 func (noopHandler) WithGroup(string) slog.Handler             { return noopHandler{} }
 
+type wrapHandler struct{ slog.Handler }
+
 func TestTryIsAddSource(t *testing.T) {
 	var tests = []struct {
 		handler slog.Handler
@@ -34,6 +36,12 @@ func TestTryIsAddSource(t *testing.T) {
 		{NewTextHandler(io.Discard, Options{AddSource: false}), false},
 		{NewJsonHandler(io.Discard, Options{AddSource: true}), true},
 		{NewJsonHandler(io.Discard, Options{AddSource: false}), false},
+		{wrapHandler{noopHandler{}}, true},
+		{wrapHandler{slog.Default().Handler()}, false},
+		{wrapHandler{slog.NewTextHandler(io.Discard, &slog.HandlerOptions{AddSource: true})}, true},
+		{wrapHandler{slog.NewTextHandler(io.Discard, &slog.HandlerOptions{AddSource: false})}, false},
+		{wrapHandler{NewTextHandler(io.Discard, Options{AddSource: true})}, true},
+		{wrapHandler{NewTextHandler(io.Discard, Options{AddSource: false})}, false},
 	}
 	for i, test := range tests {
 		if got := tryIsAddSource(test.handler); got != test.want {
