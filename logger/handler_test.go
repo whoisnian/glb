@@ -1,7 +1,6 @@
 package logger
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,13 +9,6 @@ import (
 	"time"
 )
 
-type noopHandler struct{}
-
-func (noopHandler) Enabled(context.Context, slog.Level) bool  { return true }
-func (noopHandler) Handle(context.Context, slog.Record) error { return nil }
-func (noopHandler) WithAttrs([]slog.Attr) slog.Handler        { return noopHandler{} }
-func (noopHandler) WithGroup(string) slog.Handler             { return noopHandler{} }
-
 type wrapHandler struct{ slog.Handler }
 
 func TestTryIsAddSource(t *testing.T) {
@@ -24,7 +16,7 @@ func TestTryIsAddSource(t *testing.T) {
 		handler slog.Handler
 		want    bool
 	}{
-		{noopHandler{}, true}, // default behavior is the same as slog.Logger, always invokes runtime.Callers()
+		{slog.DiscardHandler, true}, // default behavior is the same as slog.Logger, always invokes runtime.Callers()
 		{slog.Default().Handler(), false},
 		{slog.NewTextHandler(io.Discard, &slog.HandlerOptions{AddSource: true}), true},
 		{slog.NewTextHandler(io.Discard, &slog.HandlerOptions{AddSource: false}), false},
@@ -36,7 +28,7 @@ func TestTryIsAddSource(t *testing.T) {
 		{NewTextHandler(io.Discard, Options{AddSource: false}), false},
 		{NewJsonHandler(io.Discard, Options{AddSource: true}), true},
 		{NewJsonHandler(io.Discard, Options{AddSource: false}), false},
-		{wrapHandler{noopHandler{}}, true},
+		{wrapHandler{slog.DiscardHandler}, true},
 		{wrapHandler{slog.Default().Handler()}, false},
 		{wrapHandler{slog.NewTextHandler(io.Discard, &slog.HandlerOptions{AddSource: true})}, true},
 		{wrapHandler{slog.NewTextHandler(io.Discard, &slog.HandlerOptions{AddSource: false})}, false},
