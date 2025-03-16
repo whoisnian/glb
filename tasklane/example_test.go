@@ -14,24 +14,27 @@ type ExampleTask struct {
 	content string
 }
 
-func (task *ExampleTask) Start() {
+func (task *ExampleTask) Start(context.Context) {
 	defer task.wg.Done()
 	fmt.Println(task.content)
 }
 
 func Example() {
+	ctx, cancel := context.WithCancel(context.Background())
 	wg := new(sync.WaitGroup)
-	tl := tasklane.New(context.Background(), 2, 2)
+	tl := tasklane.New(ctx, 2, 2)
 
 	index := tl.ShortestQueueIndex()
 	taskCnt := 10
 	wg.Add(taskCnt)
-	for i := 0; i < taskCnt; i++ {
+	for i := range taskCnt {
 		if err := tl.PushTask(&ExampleTask{wg, "start task " + strconv.Itoa(i)}, index); err != nil {
 			panic(err)
 		}
 	}
 	wg.Wait()
+	cancel()
+	tl.Wait()
 
 	// Unordered output:
 	// start task 0

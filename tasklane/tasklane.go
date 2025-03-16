@@ -17,7 +17,7 @@ import (
 )
 
 type Task interface {
-	Start()
+	Start(context.Context)
 }
 
 var (
@@ -41,7 +41,7 @@ type TaskLane struct {
 
 	// Status
 	blockingTaskCnt *atomic.Uint32
-	lastPanic       any
+	lastPanic       *atomic.Value
 }
 
 func (tl *TaskLane) startQueue(index int) {
@@ -97,19 +97,20 @@ func (tl *TaskLane) startWorker(index int) {
 		func() {
 			defer func() {
 				if err := recover(); err != nil {
-					tl.lastPanic = err
+					tl.lastPanic.Store(err)
 				}
 			}()
-			task.Start()
+			task.Start(tl.ctx)
 		}()
 	}
 }
 
+// New creates a new TaskLane and starts all background workers.
 func New(ctx context.Context, laneSize, queueSize int) *TaskLane {
 	// create channels for TaskQueue
 	bufferedQueueList := make([]chan Task, laneSize)
 	blockingQueueList := make([]chan Task, laneSize)
-	for i := 0; i < laneSize; i++ {
+	for i := range laneSize {
 		bufferedQueueList[i] = make(chan Task, queueSize)
 		blockingQueueList[i] = make(chan Task)
 	}
@@ -127,12 +128,13 @@ func New(ctx context.Context, laneSize, queueSize int) *TaskLane {
 		blockingQueueList: blockingQueueList,
 		universalQueue:    make(chan Task),
 
-		blockingTaskCnt: &atomic.Uint32{},
+		blockingTaskCnt: new(atomic.Uint32),
+		lastPanic:       new(atomic.Value),
 	}
 
 	// start TaskQueue
 	tl.wg.Add(laneSize * 2)
-	for i := 0; i < laneSize; i++ {
+	for i := range laneSize {
 		go tl.startQueue(i)
 		go tl.startWorker(i)
 	}
@@ -155,22 +157,22 @@ func (tl *TaskLane) Wait() {
 type LaneStatus struct {
 	LaneSize    int
 	QueueSize   int
-	PendingTask int
+	PendingSize int
 	LastPanic   any
 }
 
 // Status returns the status of TaskLane.
 func (tl *TaskLane) Status() *LaneStatus {
-	pending := 0
-	for i := 0; i < tl.laneSize; i++ {
-		pending += len(tl.bufferedQueueList[i])
+	pendingSize := 0
+	for i := range tl.laneSize {
+		pendingSize += len(tl.bufferedQueueList[i])
 	}
-	pending += int(tl.blockingTaskCnt.Load())
+	pendingSize += int(tl.blockingTaskCnt.Load())
 	return &LaneStatus{
 		LaneSize:    tl.laneSize,
 		QueueSize:   tl.queueSize,
-		PendingTask: pending,
-		LastPanic:   tl.lastPanic,
+		PendingSize: pendingSize,
+		LastPanic:   tl.lastPanic.Load(),
 	}
 }
 
