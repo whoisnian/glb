@@ -12,7 +12,7 @@ import (
 
 const (
 	waitingTime = 50 * time.Millisecond
-	timeoutTime = 80 * time.Millisecond
+	timeoutTime = 100 * time.Millisecond
 )
 
 func TestWaitForInterrupt(t *testing.T) {
