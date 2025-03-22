@@ -143,14 +143,15 @@ func (store *Store) Respond200(content []byte) error {
 	return nil
 }
 
-// RespondJson replies json body to client request.
-func (store *Store) RespondJson(v interface{}) error {
+// RespondJson replies json body to client request. It cannot be called after `store.W.WriteHeader()`.
+func (store *Store) RespondJson(code int, v any) error {
 	store.W.Header().Add("Content-Type", "application/json; charset=utf-8")
+	store.W.WriteHeader(code)
 	return json.NewEncoder(store.W).Encode(v)
 }
 
 // Redirect is similar to `http.Redirect()`.
-func (store *Store) Redirect(url string, code int) {
+func (store *Store) Redirect(code int, url string) {
 	http.Redirect(store.W, store.R, url, code)
 }
 

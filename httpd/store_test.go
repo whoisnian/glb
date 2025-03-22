@@ -152,7 +152,7 @@ func TestRespondJson(t *testing.T) {
 
 	input := jsonTest{0, 0.5, "hello", true, []int{-1, 1}, []byte("array"), [][]byte{[]byte("null"), nil}}
 	want := `{"A":0,"B":0.5,"C":"hello","D":true,"E":[-1,1],"F":"YXJyYXk=","G":["bnVsbA==",null]}`
-	store.RespondJson(input)
+	store.RespondJson(http.StatusOK, input)
 	if w.code != http.StatusOK || w.Header().Get("Content-Type") != "application/json; charset=utf-8" || w.buf.String() != want+"\n" {
 		t.Fatalf("RespondJson(input) = %d %s, want %d %s", w.code, w.buf.String(), http.StatusOK, want)
 	}
@@ -163,7 +163,7 @@ func TestRedirect(t *testing.T) {
 	store := &httpd.Store{W: &httpd.ResponseWriter{Origin: w}, R: &http.Request{}}
 
 	url := "http://127.0.0.1:8000/redirect"
-	store.Redirect(url, http.StatusFound)
+	store.Redirect(http.StatusFound, url)
 	if w.code != http.StatusFound || w.Header().Get("Location") != url {
 		t.Fatalf("Redirect(url, code) = %d %s, want %d %s", w.code, w.Header().Get("Location"), http.StatusFound, url)
 	}

@@ -23,7 +23,7 @@ func sayHandler(store *httpd.Store) {
 func anyHandler(store *httpd.Store) {
 	path := store.RouteParamAny()
 	method := store.R.Method
-	store.RespondJson(map[string]string{
+	store.RespondJson(http.StatusOK, map[string]string{
 		"method": method,
 		"path":   path,
 	})
