@@ -8,8 +8,8 @@ import (
 
 type ProgressWriter struct {
 	wr     io.Writer
-	size   int
-	status chan int
+	size   int64
+	status chan int64
 }
 
 // NewProgressWriter wraps io.Writer with total written size and a status channel.
@@ -17,44 +17,41 @@ func NewProgressWriter(w io.Writer) *ProgressWriter {
 	return &ProgressWriter{
 		wr:     w,
 		size:   0,
-		status: make(chan int),
+		status: make(chan int64),
 	}
 }
 
 func (pw *ProgressWriter) sum(n int) {
-	pw.size += n
-	if pw.status != nil {
-		select {
-		case pw.status <- pw.size:
-		default:
-		}
+	pw.size += int64(n)
+	select {
+	case pw.status <- pw.size:
+	default:
 	}
 }
 
 // Size returns total written size of io.Writer.
-func (pw *ProgressWriter) Size() int {
+func (pw *ProgressWriter) Size() int64 {
 	return pw.size
 }
 
 // Status returns the status channel.
 // Total written size will be sent to the status channel without blocking after every write operation.
-func (pw *ProgressWriter) Status() chan int {
+func (pw *ProgressWriter) Status() chan int64 {
 	return pw.status
 }
 
-// Close sends total written size to the blocking channel and then closes the channel.
-// Only the sender should close a channel, never the receiver.
+// Close closes the status channel.
+// It should be executed only by the sender, never the receiver.
 func (pw *ProgressWriter) Close() {
-	if pw.status != nil {
-		pw.status <- pw.size
-		close(pw.status)
-	}
+	close(pw.status)
 }
 
 // Write implements the standard io.Writer interface.
 func (pw *ProgressWriter) Write(p []byte) (n int, err error) {
 	n, err = pw.wr.Write(p)
-	pw.sum(n)
+	if n > 0 {
+		pw.sum(n)
+	}
 	return n, err
 }
 
@@ -65,6 +62,8 @@ func (pw *ProgressWriter) WriteString(s string) (n int, err error) {
 	} else {
 		n, err = pw.wr.Write(strutil.UnsafeStringToBytes(s))
 	}
-	pw.sum(n)
+	if n > 0 {
+		pw.sum(n)
+	}
 	return n, err
 }
