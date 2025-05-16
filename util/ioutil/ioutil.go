@@ -20,7 +20,7 @@ func SeekAndReadAll(fi *os.File) ([]byte, error) {
 // It always returns len(buf) and a nil error.
 func ReadRand(r *rand.Rand, buf []byte) (n int, err error) {
 	var pos, val uint64
-	for n = 0; n < len(buf); n++ {
+	for n = range buf {
 		if pos == 0 {
 			val = r.Uint64()
 			pos = 8

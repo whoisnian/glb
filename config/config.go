@@ -118,7 +118,7 @@ func NewFlagSet(pStruct any) (*FlagSet, error) {
 //   - struct
 func (f *FlagSet) parseStructFields(structValue reflect.Value, group string) error {
 	structType := structValue.Type()
-	for i := 0; i < structType.NumField(); i++ {
+	for i := range structType.NumField() {
 		field := structType.Field(i)
 		if !field.IsExported() {
 			continue

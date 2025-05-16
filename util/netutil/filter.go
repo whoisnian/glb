@@ -60,10 +60,10 @@ func (f *IPv4Filter) Add(cidr *net.IPNet) error {
 			f.index++
 		} else {
 			f.mode = modeMaps
-			for i := 0; i < len(f.ipMaps); i++ {
+			for i := range len(f.ipMaps) {
 				f.ipMaps[i] = make(map[uint32]bool)
 			}
-			for i := 0; i < f.index; i++ {
+			for i := range f.index {
 				if f.ipList[i][1] > 0 {
 					f.ipMaps[f.ipList[i][1]-1][f.ipList[i][0]] = true
 				}
@@ -90,7 +90,7 @@ func (f *IPv4Filter) Remove(cidr *net.IPNet) error {
 	f.mutex.Lock()
 	defer f.mutex.Unlock()
 	if f.mode == modeList {
-		for i := 0; i < f.index; i++ {
+		for i := range f.index {
 			if uint32(ones) == f.ipList[i][1] && nip&ipv4Masks[ones-1] == f.ipList[i][0] {
 				f.ipList[i] = [2]uint32{0, 0} // reset to invalid CIDR
 			}
@@ -113,13 +113,13 @@ func (f *IPv4Filter) Contains(ip net.IP) bool {
 	f.mutex.RLock()
 	defer f.mutex.RUnlock()
 	if f.mode == modeList {
-		for i := 0; i < f.index; i++ {
+		for i := range f.index {
 			if f.ipList[i][1] > 0 && nip&ipv4Masks[f.ipList[i][1]-1] == f.ipList[i][0] {
 				return true
 			}
 		}
 	} else {
-		for i := 0; i < 32; i++ {
+		for i := range 32 {
 			if f.ipMaps[i][nip&ipv4Masks[i]] {
 				return true
 			}

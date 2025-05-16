@@ -9,16 +9,16 @@ func TestBufferPoolRace(t *testing.T) {
 	const P = 10
 	const N = 10000
 	done := make(chan struct{})
-	for i := 0; i < P; i++ {
+	for i := range P {
 		go func() {
 			defer func() { done <- struct{}{} }()
-			for j := 0; j < N; j++ {
+			for j := range N {
 				buf := newBuffer()
 				*buf = append(*buf, make([]byte, j)...) // len(*buf) should be j
-				for k := 0; k < j; k++ {
+				for k := range j {
 					(*buf)[k] = byte(j % 256)
 				}
-				for k := 0; k < len(*buf); k++ {
+				for k := range *buf {
 					if (*buf)[k] != byte(j%256) {
 						t.Errorf("goroutine(%d.%d) read buf[%d] = %d, want %d", i, j, k, (*buf)[k], j%256)
 						return
@@ -28,7 +28,7 @@ func TestBufferPoolRace(t *testing.T) {
 			}
 		}()
 	}
-	for i := 0; i < P; i++ {
+	for range P {
 		<-done
 	}
 }
@@ -88,8 +88,7 @@ func TestAppendIntWidth4(t *testing.T) {
 func BenchmarkAppendIntWidth1(b *testing.B) {
 	buf, input := make([]byte, 8), 0
 	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		buf = buf[:0]
 		appendIntWidth1(&buf, input)
 		input += 1
@@ -101,8 +100,7 @@ func BenchmarkAppendIntWidth1(b *testing.B) {
 func BenchmarkAppendIntWidth2(b *testing.B) {
 	buf, input := make([]byte, 8), 0
 	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		buf = buf[:0]
 		appendIntWidth2(&buf, input)
 		input += 1
@@ -115,8 +113,7 @@ func BenchmarkAppendIntWidth2(b *testing.B) {
 func BenchmarkAppendIntWidth3(b *testing.B) {
 	buf, input := make([]byte, 8), 0
 	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		buf = buf[:0]
 		appendIntWidth3(&buf, input)
 		input += 1
@@ -129,8 +126,7 @@ func BenchmarkAppendIntWidth3(b *testing.B) {
 func BenchmarkAppendIntWidth4(b *testing.B) {
 	buf, input := make([]byte, 8), 0
 	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		buf = buf[:0]
 		appendIntWidth4(&buf, input)
 		input += 1

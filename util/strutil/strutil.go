@@ -6,16 +6,6 @@ import (
 	"unsafe"
 )
 
-// SliceContain determines whether a string slice includes a certain value.
-func SliceContain(slice []string, value string) bool {
-	for i := range slice {
-		if value == slice[i] {
-			return true
-		}
-	}
-	return false
-}
-
 // ShellEscape escapes a string for use in a shell command.
 func ShellEscape(s string) string {
 	return "'" + strings.Replace(s, "'", `'"'"'`, -1) + "'"
@@ -30,8 +20,9 @@ func ShellEscapeExceptTilde(s string) string {
 }
 
 // IsDigitString checks if a string only contains ASCII digits.
+// It returns false for empty string.
 func IsDigitString(s string) bool {
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		if s[i] < '0' || s[i] > '9' {
 			return false
 		}
@@ -42,7 +33,7 @@ func IsDigitString(s string) bool {
 // Camelize converts an ASCII string to camel case like string, and supports specifying the case of the first letter.
 func Camelize(s string, upper bool) string {
 	var buf []byte
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		c := s[i]
 		switch {
 		case 'a' <= c && c <= 'z':
@@ -76,7 +67,7 @@ func Underscore(s string, upper bool) string {
 	)
 	var last int
 	var buf []byte
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		c := s[i]
 		switch {
 		case 'a' <= c && c <= 'z':

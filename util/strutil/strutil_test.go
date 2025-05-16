@@ -7,26 +7,6 @@ import (
 	"github.com/whoisnian/glb/util/strutil"
 )
 
-func TestSliceContain(t *testing.T) {
-	var tests = []struct {
-		inputSlice []string
-		inputValue string
-		want       bool
-	}{
-		{nil, "", false},
-		{[]string{}, "", false},
-		{[]string{""}, "", true},
-		{[]string{"a"}, "a", true},
-		{[]string{"a", "b", "c"}, "c", true},
-		{[]string{"a", "b", "c"}, "d", false},
-	}
-	for _, test := range tests {
-		if got := strutil.SliceContain(test.inputSlice, test.inputValue); got != test.want {
-			t.Errorf("SliceContain(%q, %q) = %v, want %v", test.inputSlice, test.inputValue, got, test.want)
-		}
-	}
-}
-
 func TestShellEscape(t *testing.T) {
 	var tests = []struct {
 		input string

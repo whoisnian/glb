@@ -113,10 +113,10 @@ func TestLoggerRace(t *testing.T) {
 	const N = 10000
 	done := make(chan struct{})
 	l := New(NewTextHandler(io.Discard, Options{LevelInfo, true, true}))
-	for i := 0; i < P; i++ {
+	for range P {
 		go func() {
 			defer func() { done <- struct{}{} }()
-			for j := 0; j < N; j++ {
+			for range N {
 				l.Log(context.Background(), LevelInfo, "mm", "a", 1)
 				ll := l.With(slog.Bool("b", false))
 				ll.Log(context.Background(), LevelInfo, "mm", "a", 1)
@@ -126,7 +126,7 @@ func TestLoggerRace(t *testing.T) {
 			}
 		}()
 	}
-	for i := 0; i < P; i++ {
+	for range P {
 		<-done
 	}
 }

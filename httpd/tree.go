@@ -4,8 +4,7 @@ import (
 	"errors"
 	"reflect"
 	"runtime"
-
-	"github.com/whoisnian/glb/util/strutil"
+	"slices"
 )
 
 const (
@@ -82,7 +81,7 @@ func parseRoute(node *treeNode, path string, method string, info *RouteInfo) (pa
 			break
 		} else if path[left+1] == ':' {
 			paramName := path[left+2 : right]
-			if paramName == "" || strutil.SliceContain(paramNameList, paramName) {
+			if paramName == "" || slices.Contains(paramNameList, paramName) {
 				return 0, errors.New("invalid fragment :" + paramName + " in routePath: " + path)
 			}
 			paramNameList = append(paramNameList, paramName)

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"math/rand/v2"
 	"net"
+	"slices"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -24,7 +25,7 @@ func (s *SimpleIPNetList) Add(cidr *net.IPNet) error {
 		s.matchAll.Store(true)
 		return nil
 	}
-	s.ipList = append(s.ipList, net.IPNet{IP: cidr.IP.Mask(cidr.Mask), Mask: append([]byte(nil), cidr.Mask...)})
+	s.ipList = append(s.ipList, net.IPNet{IP: cidr.IP.Mask(cidr.Mask), Mask: slices.Clone(cidr.Mask)})
 	return nil
 }
 func (s *SimpleIPNetList) Remove(cidr *net.IPNet) error {
@@ -59,7 +60,7 @@ func testIPv4Filter(t *testing.T, size int) {
 	simple := NewSimpleIPNetList()
 	filter := NewIPv4Filter()
 	delList := []*net.IPNet{}
-	for i := 0; i < size; i++ {
+	for i := range size {
 		buf := make([]byte, net.IPv4len)
 		ioutil.ReadRand(rd, buf)
 		cidr := &net.IPNet{IP: buf, Mask: net.CIDRMask(rd.IntN(23)+10, 32)}
@@ -75,7 +76,7 @@ func testIPv4Filter(t *testing.T, size int) {
 	}
 
 	buf := make([]byte, net.IPv4len)
-	for i := 0; i < 1e5; i++ {
+	for range 100000 {
 		ioutil.ReadRand(rd, buf)
 		if simple.Contains(buf) != filter.Contains(buf) {
 			t.Log(simple.ipList)
@@ -123,12 +124,12 @@ func TestIPv4FilterRace(t *testing.T) {
 	const N = 10000
 	done := make(chan struct{})
 	filter := NewIPv4Filter()
-	for i := 0; i < P; i++ {
+	for i := range P {
 		go func() {
 			defer func() { done <- struct{}{} }()
 			rd := rand.New(rand.NewPCG(0, uint64(i)))
 			buf := make([]byte, net.IPv4len)
-			for j := 0; j < N; j++ {
+			for j := range N {
 				if _, err := ioutil.ReadRand(rd, buf); err != nil {
 					t.Errorf("goroutine(%d.%d) ReadRand got error %v", i, j, err)
 					return
@@ -150,7 +151,7 @@ func TestIPv4FilterRace(t *testing.T) {
 			}
 		}()
 	}
-	for i := 0; i < P; i++ {
+	for range P {
 		<-done
 	}
 }
@@ -166,7 +167,7 @@ func benchmarkFilter(b *testing.B, f Filter, size int) {
 	b.Logf("Running tests with PCG seed (0,%v)", SEED)
 	rd := rand.New(rand.NewPCG(0, SEED))
 
-	for i := 0; i < size; i++ {
+	for range size {
 		buf := make([]byte, net.IPv4len)
 		ioutil.ReadRand(rd, buf)
 		cidr := &net.IPNet{IP: buf, Mask: net.CIDRMask(rd.IntN(25)+8, 32)}
@@ -175,8 +176,7 @@ func benchmarkFilter(b *testing.B, f Filter, size int) {
 
 	buf := make([]byte, net.IPv4len)
 	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		ioutil.ReadRand(rd, buf)
 		f.Contains(buf)
 	}
@@ -196,7 +196,7 @@ func BenchmarkIPv4FilterModeList32(b *testing.B) {
 func BenchmarkIPv4FilterModeMaps32(b *testing.B) {
 	filter := NewIPv4Filter()
 	filter.mode = modeMaps
-	for i := 0; i < len(filter.ipMaps); i++ {
+	for i := range len(filter.ipMaps) {
 		filter.ipMaps[i] = make(map[uint32]bool)
 	}
 	benchmarkFilter(b, filter, 32)
@@ -216,7 +216,7 @@ func BenchmarkIPv4FilterModeList128(b *testing.B) {
 func BenchmarkIPv4FilterModeMaps128(b *testing.B) {
 	filter := NewIPv4Filter()
 	filter.mode = modeMaps
-	for i := 0; i < len(filter.ipMaps); i++ {
+	for i := range len(filter.ipMaps) {
 		filter.ipMaps[i] = make(map[uint32]bool)
 	}
 	benchmarkFilter(b, filter, 128)
@@ -236,7 +236,7 @@ func BenchmarkIPv4FilterModeList256(b *testing.B) {
 func BenchmarkIPv4FilterModeMaps256(b *testing.B) {
 	filter := NewIPv4Filter()
 	filter.mode = modeMaps
-	for i := 0; i < len(filter.ipMaps); i++ {
+	for i := range len(filter.ipMaps) {
 		filter.ipMaps[i] = make(map[uint32]bool)
 	}
 	benchmarkFilter(b, filter, 256)
@@ -250,7 +250,7 @@ func BenchmarkSimpleIPNetList512(b *testing.B) {
 func BenchmarkIPv4FilterModeMaps512(b *testing.B) {
 	filter := NewIPv4Filter()
 	filter.mode = modeMaps
-	for i := 0; i < len(filter.ipMaps); i++ {
+	for i := range len(filter.ipMaps) {
 		filter.ipMaps[i] = make(map[uint32]bool)
 	}
 	benchmarkFilter(b, filter, 512)

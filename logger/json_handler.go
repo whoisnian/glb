@@ -146,7 +146,7 @@ func (h *JsonHandler) Handle(_ context.Context, r slog.Record) error {
 			return true
 		})
 	}
-	for i := 0; i < h.nOpenGroups; i++ {
+	for range h.nOpenGroups {
 		*buf = append(*buf, '}')
 	}
 	*buf = append(*buf, '}', '\n')

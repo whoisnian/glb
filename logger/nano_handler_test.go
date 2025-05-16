@@ -134,13 +134,13 @@ func TestNanoHandlerRace(t *testing.T) {
 	const N = 10000
 	done := make(chan struct{})
 	h := NewNanoHandler(io.Discard, Options{LevelInfo, true, true})
-	for i := 0; i < P; i++ {
+	for i := range P {
 		go func() {
 			defer func() { done <- struct{}{} }()
 			var pcs [1]uintptr
 			runtime.Callers(1, pcs[:])
 			r := slog.NewRecord(testTime, LevelInfo, "message", pcs[0])
-			for j := 0; j < N; j++ {
+			for j := range N {
 				if err := h.Handle(context.Background(), r); err != nil {
 					t.Errorf("goroutine(%d.%d) direct Handle got error %v", i, j, err)
 					return
@@ -159,7 +159,7 @@ func TestNanoHandlerRace(t *testing.T) {
 			}
 		}()
 	}
-	for i := 0; i < P; i++ {
+	for range P {
 		<-done
 	}
 }

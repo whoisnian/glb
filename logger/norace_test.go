@@ -12,7 +12,7 @@ import (
 
 func TestNanoHandlerAlloc(t *testing.T) {
 	r := slog.NewRecord(time.Now(), LevelInfo, "msg", 0)
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		r.AddAttrs(slog.Int("x = y", i))
 	}
 	var h slog.Handler = NewNanoHandler(io.Discard, Options{LevelInfo, false, false})
@@ -31,7 +31,7 @@ func TestNanoHandlerAlloc(t *testing.T) {
 
 func TestTextHandlerAlloc(t *testing.T) {
 	r := slog.NewRecord(time.Now(), LevelInfo, "msg", 0)
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		r.AddAttrs(slog.Int("x = y", i))
 	}
 	var h slog.Handler = NewTextHandler(io.Discard, Options{LevelInfo, false, false})
@@ -50,7 +50,7 @@ func TestTextHandlerAlloc(t *testing.T) {
 
 func TestJsonHandlerAlloc(t *testing.T) {
 	r := slog.NewRecord(time.Now(), LevelInfo, "msg", 0)
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		r.AddAttrs(slog.Int("x", i))
 	}
 	var h slog.Handler = NewJsonHandler(io.Discard, Options{LevelInfo, false, false})
