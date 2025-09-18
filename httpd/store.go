@@ -1,7 +1,9 @@
 package httpd
 
 import (
+	"bufio"
 	"encoding/json"
+	"net"
 	"net/http"
 	"strings"
 
@@ -46,6 +48,19 @@ func (w *ResponseWriter) WriteHeader(code int) {
 	w.Status = code
 }
 
+// Unwrap returns the original http.ResponseWriter.
+func (w *ResponseWriter) Unwrap() http.ResponseWriter {
+	return w.Origin
+}
+
+// Hijack implements the standard http.Hijacker interface.
+func (w *ResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	if hj, ok := w.Origin.(http.Hijacker); ok {
+		return hj.Hijack()
+	}
+	return nil, nil, http.ErrNotSupported
+}
+
 // Flush implements the standard http.Flusher interface.
 func (w *ResponseWriter) Flush() {
 	if flusher, ok := w.Origin.(http.Flusher); ok {
@@ -59,8 +74,9 @@ func (w *ResponseWriter) FlushError() error {
 		return flusher.FlushError()
 	} else if flusher, ok := w.Origin.(http.Flusher); ok {
 		flusher.Flush()
+		return nil
 	}
-	return nil
+	return http.ErrNotSupported
 }
 
 // Store consists of responseWriter, request, routeParams and routeInfo.

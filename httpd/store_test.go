@@ -1,7 +1,10 @@
 package httpd_test
 
 import (
+	"bufio"
 	"bytes"
+	"errors"
+	"net"
 	"net/http"
 	"testing"
 
@@ -18,35 +21,80 @@ func (rw *fakeResponseWriter) Reset()                      { rw.code = 0; rw.buf
 func (rw *fakeResponseWriter) Header() http.Header         { return rw.header }
 func (rw *fakeResponseWriter) WriteHeader(statusCode int)  { rw.code = statusCode }
 func (rw *fakeResponseWriter) Write(b []byte) (int, error) { return rw.buf.Write(b) }
-func (rw *fakeResponseWriter) Flush()                      { rw.code = -1 }
+
+func TestUnwrap(t *testing.T) {
+	w := &fakeResponseWriter{}
+	store := &httpd.Store{W: &httpd.ResponseWriter{Origin: w}}
+	if got := store.W.Unwrap(); got != w {
+		t.Fatal("ResponseWriter.Unwrap should return original http.ResponseWriter")
+	}
+}
+
+type fakeHijacker struct {
+	fakeResponseWriter
+}
+
+func (rw *fakeHijacker) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	rw.code = -1
+	return nil, nil, nil
+}
+
+func TestHijack(t *testing.T) {
+	w := &fakeResponseWriter{}
+	store := &httpd.Store{W: &httpd.ResponseWriter{Origin: w}}
+	_, _, err := store.W.Hijack()
+	if !errors.Is(err, http.ErrNotSupported) {
+		t.Fatal("ResponseWriter.Hijack should report ErrNotSupported")
+	}
+
+	f := &fakeHijacker{}
+	store = &httpd.Store{W: &httpd.ResponseWriter{Origin: f}}
+	_, _, err = store.W.Hijack()
+	if err != nil || f.code != -1 {
+		t.Fatal("ResponseWriter.Hijack should call Origin.Hijack successfully")
+	}
+}
+
+type fakeFlusher struct {
+	fakeResponseWriter
+}
+
+func (rw *fakeFlusher) Flush() { rw.code = -2 }
+
+func TestFlush(t *testing.T) {
+	w := &fakeFlusher{}
+	store := &httpd.Store{W: &httpd.ResponseWriter{Origin: w}}
+	store.W.Flush()
+	if w.code != -2 {
+		t.Fatal("ResponseWriter.Flush should call Origin.Flush successfully")
+	}
+}
 
 type fakeErrorFlusher struct {
 	fakeResponseWriter
 }
 
-func (rw *fakeErrorFlusher) FlushError() error { rw.code = -2; return nil }
-
-func TestFlush(t *testing.T) {
-	w := &fakeResponseWriter{}
-	store := &httpd.Store{W: &httpd.ResponseWriter{Origin: w}}
-	store.W.Flush()
-	if w.code != -1 {
-		t.Fatal("ResponseWriter.Flush should call Origin.Flush successfully")
-	}
-}
+func (rw *fakeErrorFlusher) FlushError() error { rw.code = -3; return nil }
 
 func TestFlushError(t *testing.T) {
 	w := &fakeResponseWriter{}
 	store := &httpd.Store{W: &httpd.ResponseWriter{Origin: w}}
 	err := store.W.FlushError()
-	if err != nil || w.code != -1 {
-		t.Fatal("ResponseWriter.FlushError should call Origin.Flush successfully")
+	if !errors.Is(err, http.ErrNotSupported) {
+		t.Fatal("ResponseWriter.FlushError should report ErrNotSupported")
 	}
 
-	f := &fakeErrorFlusher{}
+	f := &fakeFlusher{}
 	store = &httpd.Store{W: &httpd.ResponseWriter{Origin: f}}
 	err = store.W.FlushError()
 	if err != nil || f.code != -2 {
+		t.Fatal("ResponseWriter.FlushError should call Origin.Flush successfully")
+	}
+
+	ef := &fakeErrorFlusher{}
+	store = &httpd.Store{W: &httpd.ResponseWriter{Origin: ef}}
+	err = store.W.FlushError()
+	if err != nil || ef.code != -3 {
 		t.Fatal("ResponseWriter.FlushError should call Origin.FlushError successfully")
 	}
 }
