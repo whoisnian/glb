@@ -52,13 +52,29 @@ func TestResolveUrlPath(t *testing.T) {
 		inputRaw  string
 		want      string
 	}{
-		{"/data", "", "/data"},
-		{"/data", ".", "/data"},
-		{"/data", "..", "/data"},
-		{"/data", "doc", "/data/doc"},
-		{"/data", "../doc", "/data/doc"},
-		{"/data", "/doc", "/data/doc"},
-		{"/data", "/doc/..", "/data"},
+		{"/var/www/html", "", "/var/www/html"},
+		{"/var/www/html", ".", "/var/www/html"},
+		{"/var/www/html", "..", "/var/www/html"},
+		{"/var/www/html", "/", "/var/www/html"},
+
+		{"/var/www/html", "static/image.png", "/var/www/html/static/image.png"},
+		{"/var/www/html", "/static/image.png", "/var/www/html/static/image.png"},
+		{"/var/www/html", "///static/image.png", "/var/www/html/static/image.png"},
+		{"/var/www/html", "/static/./image.png", "/var/www/html/static/image.png"},
+
+		{"/var/www/html", "../etc/passwd", "/var/www/html/etc/passwd"},
+		{"/var/www/html", "../../etc/passwd", "/var/www/html/etc/passwd"},
+		{"/var/www/html", "../../../etc/passwd", "/var/www/html/etc/passwd"},
+		{"/var/www/html", "/../etc/passwd", "/var/www/html/etc/passwd"},
+		{"/var/www/html", "/../../etc/passwd", "/var/www/html/etc/passwd"},
+		{"/var/www/html", "/../../../etc/passwd", "/var/www/html/etc/passwd"},
+		{"/var/www/html", "/static/../etc/passwd", "/var/www/html/etc/passwd"},
+
+		{"/var/www/html", "/static\\..\\..\\etc\\passwd", "/var/www/html/etc/passwd"},
+		{"/var/www/html", "\\static\\..\\..\\etc\\passwd", "/var/www/html/etc/passwd"},
+		{"/var/www/html", "/static/%2e%2e/file.txt", "/var/www/html/static/%2e%2e/file.txt"},
+		{"/var/www/html", "/static\x00/../../etc/passwd", "/var/www/html/etc/passwd"},
+		{"/var/www/html", "/static/../..\x00/etc/passwd", "/var/www/html/..\x00/etc/passwd"},
 	}
 	for _, test := range tests {
 		want := test.want
