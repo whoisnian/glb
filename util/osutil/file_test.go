@@ -68,3 +68,44 @@ func TestMoveFile(t *testing.T) {
 		t.Fatalf("ReadFile() = (%q, %v), want (%q, %v)", actual, err, want, nil)
 	}
 }
+
+func TestSameFile(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "TestSameFile_")
+	if err != nil {
+		t.Fatalf("MkdirTemp: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	tempLink := tempDir + "_link"
+	if err = os.Symlink(tempDir, tempLink); err != nil {
+		t.Fatalf("Symlink: %v", err)
+	}
+	defer os.Remove(tempLink)
+
+	// Stat and Lstat on the same path: os.SameFile() should return true.
+	stat, err := os.Stat(tempDir)
+	if err != nil {
+		t.Fatalf("Stat: %v", err)
+	}
+	lstat, err := os.Lstat(tempDir)
+	if err != nil {
+		t.Fatalf("Lstat: %v", err)
+	}
+
+	if !os.SameFile(stat, lstat) {
+		t.Fatalf("os.SameFile() = false, want true")
+	}
+
+	// Stat on the link and Lstat on the target: os.SameFile() should return true.
+	stat, err = os.Stat(tempLink)
+	if err != nil {
+		t.Fatalf("Stat: %v", err)
+	}
+	lstat, err = os.Lstat(tempDir)
+	if err != nil {
+		t.Fatalf("Lstat: %v", err)
+	}
+	if !os.SameFile(lstat, stat) {
+		t.Fatalf("os.SameFile() = false, want true")
+	}
+}
