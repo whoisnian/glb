@@ -174,8 +174,8 @@ var (
 		}, {
 			name:     "json.RawMessage",
 			attrs:    []slog.Attr{slog.Any("bs", json.RawMessage([]byte("1234")))},
-			wantNano: "2000-01-02 03:04:05 [I] message [49 50 51 52]",
-			wantText: `time=2000-01-02T03:04:05Z level=INFO msg=message bs="[49 50 51 52]"`,
+			wantNano: "2000-01-02 03:04:05 [I] message 1234",
+			wantText: `time=2000-01-02T03:04:05Z level=INFO msg=message bs=1234`,
 			wantJson: `{"time":"2000-01-02T03:04:05.000000006Z","level":"INFO","msg":"message","bs":1234}`,
 		}, {
 			name: "inline group",

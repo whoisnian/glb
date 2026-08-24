@@ -13,6 +13,17 @@ type Options struct {
 	AddSource bool
 }
 
+func trimSourcePath(file string) string {
+	dir, _, found := strings.CutLast(file, "/")
+	if !found {
+		return file
+	}
+	if _, pkg, ok := strings.CutLast(dir, "/"); ok {
+		return file[len(dir)-len(pkg):]
+	}
+	return file
+}
+
 func tryIsAddSource(h slog.Handler) (result bool) {
 	if hh, ok := h.(interface{ IsAddSource() bool }); ok {
 		return hh.IsAddSource()

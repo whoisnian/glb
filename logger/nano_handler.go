@@ -172,16 +172,7 @@ func appendNanoValue(buf *[]byte, v slog.Value, colorful bool) {
 
 func appendNanoSource(buf *[]byte, pc uintptr) {
 	f, _ := runtime.CallersFrames([]uintptr{pc}).Next()
-	idx, first := 0, false
-	for idx = len(f.File) - 1; idx > 0; idx-- {
-		if f.File[idx] == '/' {
-			if first {
-				break
-			}
-			first = true
-		}
-	}
-	*buf = append(*buf, f.File[idx+1:]...)
+	*buf = append(*buf, trimSourcePath(f.File)...)
 	*buf = append(*buf, ':')
 	*buf = strconv.AppendInt(*buf, int64(f.Line), 10)
 }

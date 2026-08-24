@@ -118,9 +118,7 @@ func (store *Store) GetClientIP() string {
 		return ip
 	}
 	if ip := store.R.Header.Get("X-Forwarded-For"); ip != "" {
-		if i := strings.IndexByte(ip, ','); i != -1 {
-			return ip[:i]
-		}
+		ip, _, _ = strings.Cut(ip, ",")
 		return ip
 	}
 	if ip := store.R.Header.Get("X-Real-IP"); ip != "" {

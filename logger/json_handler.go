@@ -1,9 +1,10 @@
 package logger
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
+	"encoding/json/jsontext"
+	jsonv2 "encoding/json/v2"
 	"io"
 	"log/slog"
 	"runtime"
@@ -236,33 +237,24 @@ func appendJsonValue(buf *[]byte, v slog.Value, colorful bool) {
 	}
 }
 
+// marshalOptions keeps the encoding/json v1 semantics, but without HTML escaping.
+var marshalOptions = jsonv2.JoinOptions(json.DefaultOptionsV1(), jsontext.EscapeForHTML(false))
+
 func appendJsonMarshal(buf *[]byte, v any) {
-	bb := bytes.Buffer{}
-	enc := json.NewEncoder(&bb)
-	enc.SetEscapeHTML(false)
-	if err := enc.Encode(v); err != nil {
+	bs, err := jsonv2.Marshal(v, marshalOptions)
+	if err != nil {
 		*buf = append(*buf, '"')
 		appendJsonString(buf, "!ERROR:"+err.Error())
 		*buf = append(*buf, '"')
 		return
 	}
-	bs := bb.Bytes()
-	*buf = append(*buf, bs[:len(bs)-1]...)
+	*buf = append(*buf, bs...)
 }
 
 func appendJsonSource(buf *[]byte, pc uintptr) {
 	f, _ := runtime.CallersFrames([]uintptr{pc}).Next()
-	idx, first := 0, false
-	for idx = len(f.File) - 1; idx > 0; idx-- {
-		if f.File[idx] == '/' {
-			if first {
-				break
-			}
-			first = true
-		}
-	}
 	*buf = append(*buf, '"', 'f', 'i', 'l', 'e', '"', ':', '"')
-	appendJsonString(buf, f.File[idx+1:])
+	appendJsonString(buf, trimSourcePath(f.File))
 	*buf = append(*buf, '"', ',', '"', 'l', 'i', 'n', 'e', '"', ':')
 	*buf = strconv.AppendInt(*buf, int64(f.Line), 10)
 }

@@ -242,16 +242,7 @@ func appendTextValue(buf *[]byte, v slog.Value, colorful bool) {
 
 func appendTextSource(buf *[]byte, pc uintptr) {
 	f, _ := runtime.CallersFrames([]uintptr{pc}).Next()
-	idx, first := 0, false
-	for idx = len(f.File) - 1; idx > 0; idx-- {
-		if f.File[idx] == '/' {
-			if first {
-				break
-			}
-			first = true
-		}
-	}
-	appendTextString(buf, f.File[idx+1:]+":"+strconv.FormatInt(int64(f.Line), 10))
+	appendTextString(buf, trimSourcePath(f.File)+":"+strconv.FormatInt(int64(f.Line), 10))
 }
 
 func appendTextString(buf *[]byte, str string) {

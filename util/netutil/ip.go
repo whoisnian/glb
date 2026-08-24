@@ -1,6 +1,9 @@
 package netutil
 
-import "net"
+import (
+	"net"
+	"strings"
+)
 
 // FirstIP returns the start IP of specified CIDR.
 func FirstIP(cidr *net.IPNet) net.IP {
@@ -18,15 +21,12 @@ func LastIP(cidr *net.IPNet) net.IP {
 
 // SplitHostPort splits "host:port" or "[host]:port" into host and port without strict validation.
 func SplitHostPort(addr string) (host, port string) {
-	i := len(addr) - 1
-	for ; i >= 0; i-- {
-		if addr[i] == ':' {
-			if addr[0] == '[' && addr[i-1] == ']' {
-				return addr[1 : i-1], addr[i+1:]
-			} else {
-				return addr[0:i], addr[i+1:]
-			}
-		}
+	host, port, found := strings.CutLast(addr, ":")
+	if !found {
+		return addr, ""
 	}
-	return addr, ""
+	if len(host) > 1 && host[0] == '[' && host[len(host)-1] == ']' {
+		host = host[1 : len(host)-1]
+	}
+	return host, port
 }
