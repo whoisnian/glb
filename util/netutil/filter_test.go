@@ -135,17 +135,18 @@ func TestIPv4FilterRace(t *testing.T) {
 					return
 				}
 				cidr := &net.IPNet{IP: buf, Mask: net.CIDRMask(rd.IntN(23)+10, 32)}
-				if j%4 == 0 {
+				switch j % 4 {
+				case 0:
 					if err := filter.Add(cidr); err != nil {
 						t.Errorf("goroutine(%d.%d) add cidr got error %v", i, j, err)
 						return
 					}
-				} else if j%4 == 1 {
+				case 1:
 					if err := filter.Remove(cidr); err != nil {
 						t.Errorf("goroutine(%d.%d) remove cidr got error %v", i, j, err)
 						return
 					}
-				} else {
+				default:
 					_ = filter.Contains(buf)
 				}
 			}

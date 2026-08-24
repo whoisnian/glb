@@ -7,7 +7,6 @@ import (
 	"os"
 	"reflect"
 	"testing"
-	"time"
 
 	"github.com/whoisnian/glb/config"
 )
@@ -59,15 +58,14 @@ func TestNewFlagSet_ParseTagField(t *testing.T) {
 }
 
 type TagValue struct {
-	Bool     bool          `flag:"bool,true,Enable feature xx"`
-	Int      int           `flag:"int,0,Count of xx0"`
-	Int64    int64         `flag:"int64,1,Count of xx1"`
-	Uint     uint          `flag:"uint,2,Count of xx2"`
-	Uint64   uint64        `flag:"uint64,3,Count of xx3"`
-	String   string        `flag:"string,:80,Listen addr"`
-	Float64  float64       `flag:"float64,0.6,Threshold of xx"`
-	Duration time.Duration `flag:"duration,10s,Heartbeat interval"`
-	Bytes    []byte        `flag:"bytes,d2hvaXNuaWFu,Private key (base64)"`
+	Bool    bool    `flag:"bool,true,Enable feature xx"`
+	Int     int     `flag:"int,0,Count of xx0"`
+	Int64   int64   `flag:"int64,1,Count of xx1"`
+	Uint    uint    `flag:"uint,2,Count of xx2"`
+	Uint64  uint64  `flag:"uint64,3,Count of xx3"`
+	String  string  `flag:"string,:80,Listen addr"`
+	Float64 float64 `flag:"float64,0.6,Threshold of xx"`
+	Bytes   []byte  `flag:"bytes,d2hvaXNuaWFu,Private key (base64)"`
 }
 
 var tagValueResults = [][]string{
@@ -79,21 +77,19 @@ var tagValueResults = [][]string{
 	{"uint64", "3", "Count of xx3"},
 	{"string", ":80", "Listen addr"},
 	{"float64", "0.6", "Threshold of xx"},
-	{"duration", "10s", "Heartbeat interval"},
 	{"bytes", "d2hvaXNuaWFu", "Private key (base64)"},
 }
 
-var tagValueUsage = `  -help     bool     Show usage message and quit
-  -config   string   Specify file path of custom configuration json
-  -bool     bool     Enable feature xx [CFG_BOOL] (default true)
-  -int      int      Count of xx0 [CFG_INT]
-  -int64    int64    Count of xx1 [CFG_INT64] (default 1)
-  -uint     uint     Count of xx2 [CFG_UINT] (default 2)
-  -uint64   uint64   Count of xx3 [CFG_UINT64] (default 3)
-  -string   string   Listen addr [CFG_STRING] (default ":80")
-  -float64  float64  Threshold of xx [CFG_FLOAT64] (default 0.6)
-  -duration duration Heartbeat interval [CFG_DURATION] (default 10s)
-  -bytes    bytes    Private key (base64) [CFG_BYTES] (default d2hvaXNuaWFu)
+var tagValueUsage = `  -help    bool     Show usage message and quit
+  -config  string   Specify file path of custom configuration json
+  -bool    bool     Enable feature xx [CFG_BOOL] (default true)
+  -int     int      Count of xx0 [CFG_INT]
+  -int64   int64    Count of xx1 [CFG_INT64] (default 1)
+  -uint    uint     Count of xx2 [CFG_UINT] (default 2)
+  -uint64  uint64   Count of xx3 [CFG_UINT64] (default 3)
+  -string  string   Listen addr [CFG_STRING] (default ":80")
+  -float64 float64  Threshold of xx [CFG_FLOAT64] (default 0.6)
+  -bytes   bytes    Private key (base64) [CFG_BYTES] (default d2hvaXNuaWFu)
 `
 
 func TestNewFlagSet_ParseTagValue(t *testing.T) {
@@ -115,15 +111,14 @@ func TestNewFlagSet_ParseTagValue(t *testing.T) {
 func TestNewFlagSet_FillDefaultValue(t *testing.T) {
 	actual := TagValue{}
 	want := TagValue{
-		Bool:     true,
-		Int:      0,
-		Int64:    1,
-		Uint:     2,
-		Uint64:   3,
-		String:   ":80",
-		Float64:  0.6,
-		Duration: time.Second * 10,
-		Bytes:    []byte("whoisnian"),
+		Bool:    true,
+		Int:     0,
+		Int64:   1,
+		Uint:    2,
+		Uint64:  3,
+		String:  ":80",
+		Float64: 0.6,
+		Bytes:   []byte("whoisnian"),
 	}
 	_, err := config.NewFlagSet(&actual)
 	if err != nil {
@@ -198,15 +193,14 @@ func TestParse_Cli(t *testing.T) {
 	}
 	actual := TagValue{}
 	want := TagValue{
-		Bool:     false,
-		Int:      10,
-		Int64:    1, // default flag value
-		Uint:     2, // default flag value
-		Uint64:   20,
-		String:   "127.0.0.1:80",
-		Float64:  0.6,              // default flag value
-		Duration: time.Second * 10, // default flag value
-		Bytes:    []byte("_nian_"),
+		Bool:    false,
+		Int:     10,
+		Int64:   1, // default flag value
+		Uint:    2, // default flag value
+		Uint64:  20,
+		String:  "127.0.0.1:80",
+		Float64: 0.6, // default flag value
+		Bytes:   []byte("_nian_"),
 	}
 	f, err := config.NewFlagSet(&actual)
 	if err != nil {
@@ -224,15 +218,14 @@ func TestParse_Env(t *testing.T) {
 	arguments := []string{}
 	actual := TagValue{}
 	want := TagValue{
-		Bool:     false,
-		Int:      10,
-		Int64:    -20,
-		Uint:     2,     // default flag value
-		Uint64:   3,     // default flag value
-		String:   ":80", // default flag value
-		Float64:  0.01,
-		Duration: time.Minute * 5,
-		Bytes:    []byte("whoisnian"), // default flag value
+		Bool:    false,
+		Int:     10,
+		Int64:   -20,
+		Uint:    2,     // default flag value
+		Uint64:  3,     // default flag value
+		String:  ":80", // default flag value
+		Float64: 0.01,
+		Bytes:   []byte("whoisnian"), // default flag value
 	}
 	f, err := config.NewFlagSet(&actual)
 	if err != nil {
@@ -303,15 +296,14 @@ func TestArgs(t *testing.T) {
 func TestConfigJson_File(t *testing.T) {
 	actual := TagValue{}
 	want := TagValue{
-		Bool:     false,
-		Int:      10,
-		Int64:    -20,
-		Uint:     2,
-		Uint64:   3,
-		String:   "0.0.0.0:80",
-		Float64:  0.01,
-		Duration: time.Minute * 5,
-		Bytes:    []byte("_nian_"),
+		Bool:    false,
+		Int:     10,
+		Int64:   -20,
+		Uint:    2,
+		Uint64:  3,
+		String:  "0.0.0.0:80",
+		Float64: 0.01,
+		Bytes:   []byte("_nian_"),
 	}
 
 	fi, err := os.CreateTemp("", "config-json-file-*.json")
@@ -339,15 +331,14 @@ func TestConfigJson_File(t *testing.T) {
 func TestConfigJson_Env(t *testing.T) {
 	actual := TagValue{}
 	want := TagValue{
-		Bool:     false,
-		Int:      10,
-		Int64:    -20,
-		Uint:     2,
-		Uint64:   3,
-		String:   "0.0.0.0:80",
-		Float64:  0.01,
-		Duration: time.Minute * 5,
-		Bytes:    []byte("_nian_"),
+		Bool:    false,
+		Int:     10,
+		Int64:   -20,
+		Uint:    2,
+		Uint64:  3,
+		String:  "0.0.0.0:80",
+		Float64: 0.01,
+		Bytes:   []byte("_nian_"),
 	}
 
 	data, err := json.Marshal(want)
@@ -372,15 +363,14 @@ func TestConfigJson_Env(t *testing.T) {
 func TestValuePriority(t *testing.T) {
 	actual := TagValue{}
 	want := TagValue{
-		Bool:     true,
-		Int:      12, // cli > env > file > default
-		Int64:    21, // env > file > default
-		Uint:     30, // file > default
-		Uint64:   3,  // default
-		String:   ":80",
-		Float64:  0.6,
-		Duration: time.Second * 10,
-		Bytes:    []byte("whoisnian"),
+		Bool:    true,
+		Int:     12, // cli > env > file > default
+		Int64:   21, // env > file > default
+		Uint:    30, // file > default
+		Uint64:  3,  // default
+		String:  ":80",
+		Float64: 0.6,
+		Bytes:   []byte("whoisnian"),
 	}
 
 	fi, err := os.CreateTemp("", "config-json-file-*.json")

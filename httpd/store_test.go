@@ -199,9 +199,9 @@ func TestRespondJson(t *testing.T) {
 	}
 
 	input := jsonTest{0, 0.5, "hello", true, []int{-1, 1}, []byte("array"), [][]byte{[]byte("null"), nil}}
-	want := `{"A":0,"B":0.5,"C":"hello","D":true,"E":[-1,1],"F":"YXJyYXk=","G":["bnVsbA==",null]}`
+	want := `{"A":0,"B":0.5,"C":"hello","D":true,"E":[-1,1],"F":"YXJyYXk=","G":["bnVsbA==",""]}`
 	store.RespondJson(http.StatusOK, input)
-	if w.code != http.StatusOK || w.Header().Get("Content-Type") != "application/json; charset=utf-8" || w.buf.String() != want+"\n" {
+	if w.code != http.StatusOK || w.Header().Get("Content-Type") != "application/json; charset=utf-8" || w.buf.String() != want {
 		t.Fatalf("RespondJson(input) = %d %s, want %d %s", w.code, w.buf.String(), http.StatusOK, want)
 	}
 }

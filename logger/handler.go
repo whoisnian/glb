@@ -33,7 +33,7 @@ func tryIsAddSource(h slog.Handler) (result bool) {
 }
 
 func extractHandlerOptions(v reflect.Value, depth int) (result bool, ok bool) {
-	for d := 16; d > 0 && (v.Kind() == reflect.Ptr || v.Kind() == reflect.Interface); d-- {
+	for d := 16; d > 0 && (v.Kind() == reflect.Pointer || v.Kind() == reflect.Interface); d-- {
 		v = v.Elem()
 	}
 	if v.Kind() == reflect.Struct {

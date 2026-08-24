@@ -2,7 +2,7 @@ package httpd
 
 import (
 	"bufio"
-	"encoding/json"
+	jsonv2 "encoding/json/v2"
 	"net"
 	"net/http"
 	"strings"
@@ -161,7 +161,7 @@ func (store *Store) Respond200(content []byte) error {
 func (store *Store) RespondJson(code int, v any) error {
 	store.W.Header().Add("Content-Type", "application/json; charset=utf-8")
 	store.W.WriteHeader(code)
-	return json.NewEncoder(store.W).Encode(v)
+	return jsonv2.MarshalWrite(store.W, v)
 }
 
 // Redirect is similar to `http.Redirect()`.

@@ -2,8 +2,6 @@ package logger
 
 import (
 	"context"
-	"encoding/json"
-	"encoding/json/jsontext"
 	jsonv2 "encoding/json/v2"
 	"io"
 	"log/slog"
@@ -209,7 +207,9 @@ func appendJsonValue(buf *[]byte, v slog.Value, colorful bool) {
 		*buf = append(*buf, '"')
 	case slog.KindAny, slog.KindLogValuer:
 		va := v.Any()
-		if _, ok := va.(json.Marshaler); ok {
+		if _, ok := va.(jsonv2.Marshaler); ok {
+			appendJsonMarshal(buf, va)
+		} else if _, ok := va.(jsonv2.MarshalerTo); ok {
 			appendJsonMarshal(buf, va)
 		} else if vv, ok := va.(error); ok {
 			*buf = append(*buf, '"')
@@ -237,11 +237,8 @@ func appendJsonValue(buf *[]byte, v slog.Value, colorful bool) {
 	}
 }
 
-// marshalOptions keeps the encoding/json v1 semantics, but without HTML escaping.
-var marshalOptions = jsonv2.JoinOptions(json.DefaultOptionsV1(), jsontext.EscapeForHTML(false))
-
 func appendJsonMarshal(buf *[]byte, v any) {
-	bs, err := jsonv2.Marshal(v, marshalOptions)
+	bs, err := jsonv2.Marshal(v)
 	if err != nil {
 		*buf = append(*buf, '"')
 		appendJsonString(buf, "!ERROR:"+err.Error())

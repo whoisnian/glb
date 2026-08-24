@@ -286,25 +286,23 @@ func TestLoggerFatalf(t *testing.T) {
 func TestLoggeraddSource(t *testing.T) {
 	var buf bytes.Buffer
 	var l *Logger = New(NewTextHandler(&buf, Options{LevelInfo, false, true}))
+	var ctx context.Context
 
-	//lint:ignore SA1012 test only
-	l.Log(nil, LevelInfo, "log", "a", 1)
+	l.Log(ctx, LevelInfo, "log", "a", 1)
 	got, want := buf.String(), `^time=`+reTextTime+` level=INFO source=`+reTextSource+` msg=log a=1\n$`
 	if !regexp.MustCompile(want).MatchString(got) {
 		t.Errorf("Logger.Log() got %q, want matched by %s", got, want)
 	}
 
 	buf.Reset()
-	//lint:ignore SA1012 test only
-	l.LogAttrs(nil, LevelInfo, "logattrs", slog.Bool("b", true), slog.Float64("c", 0.25))
+	l.LogAttrs(ctx, LevelInfo, "logattrs", slog.Bool("b", true), slog.Float64("c", 0.25))
 	got, want = buf.String(), `^time=`+reTextTime+` level=INFO source=`+reTextSource+` msg=logattrs b=true c=0.25\n$`
 	if !regexp.MustCompile(want).MatchString(got) {
 		t.Errorf("Logger.LogAttrs() got %q, want matched by %s", got, want)
 	}
 
 	buf.Reset()
-	//lint:ignore SA1012 test only
-	l.Logf(nil, LevelInfo, "finished:%d%%", 80)
+	l.Logf(ctx, LevelInfo, "finished:%d%%", 80)
 	got, want = buf.String(), `^time=`+reTextTime+` level=INFO source=`+reTextSource+` msg=finished:80%\n$`
 	if !regexp.MustCompile(want).MatchString(got) {
 		t.Errorf("Logger.Logf() got %q, want matched by %s", got, want)

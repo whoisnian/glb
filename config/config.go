@@ -15,7 +15,6 @@
 //   - uint64
 //   - string
 //   - float64
-//   - time.Duration
 //   - []byte
 //   - struct
 package config
@@ -387,18 +386,24 @@ func (f *FlagSet) PrintUsage(output io.Writer, colorful bool) {
 
 		buf.WriteString(strings.ReplaceAll(flg.Usage, "\n", "\n"+strings.Repeat(" ", 3+nameLen+1+typeLen+1)))
 		if flg.Env != "" {
-			buf.WriteString(" " + colors[1] + "[")
+			buf.WriteByte(' ')
+			buf.WriteString(colors[1])
+			buf.WriteByte('[')
 			buf.WriteString(flg.Env)
-			buf.WriteString("]" + colors[0])
+			buf.WriteByte(']')
+			buf.WriteString(colors[0])
 		}
 		if !flg.Value.IsZero(flg.DefValue) {
-			buf.WriteString(" " + colors[2] + "(default ")
+			buf.WriteByte(' ')
+			buf.WriteString(colors[2])
+			buf.WriteString("(default ")
 			if _, ok := flg.Value.(*stringValue); ok {
 				buf.WriteString(strconv.Quote(flg.DefValue))
 			} else {
 				buf.WriteString(flg.DefValue)
 			}
-			buf.WriteString(")" + colors[0])
+			buf.WriteByte(')')
+			buf.WriteString(colors[0])
 		}
 		buf.WriteByte('\n')
 		output.Write(buf.Bytes())

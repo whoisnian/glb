@@ -8,7 +8,7 @@ import (
 
 // ShellEscape escapes a string for use in a shell command.
 func ShellEscape(s string) string {
-	return "'" + strings.Replace(s, "'", `'"'"'`, -1) + "'"
+	return "'" + strings.ReplaceAll(s, "'", `'"'"'`) + "'"
 }
 
 // ShellEscapeExceptTilde escapes a string for use in a shell command, except '~'.

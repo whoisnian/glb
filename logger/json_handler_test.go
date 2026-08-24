@@ -215,9 +215,11 @@ func TestAppendJsonAttr(t *testing.T) {
 		{slog.Any("map", map[string]string{"name": "a b"}), `"map":{"name":"a b"}`},
 		{slog.Any("e", errors.New("io error")), `"e":"io error"`},
 		{slog.Any("e", io.EOF), `"e":"EOF"`},
-		{slog.Any("t", jsonM{""}), `"t":"!ERROR:json: error calling MarshalJSON for type *logger.jsonM: EMPTY"`},
-		{slog.Any("t", jsonM{"E"}), `"t":"!ERROR:json: error calling MarshalJSON for type *logger.jsonM: invalid character 'E' looking for beginning of value"`},
+		{slog.Any("t", jsonM{""}), `"t":"!ERROR:json: cannot marshal from Go logger.jsonM: EMPTY"`},
+		{slog.Any("t", jsonM{"E"}), `"t":"!ERROR:json: cannot marshal from Go logger.jsonM: invalid character 'E' at start of value"`},
 		{slog.Any("t", jsonM{"value"}), `"t":"JSON{value}"`},
+		{slog.Any("d", struct{ D time.Duration }{time.Second}), `"d":"!ERROR:json: cannot marshal from Go time.Duration within \"/D\": no default representation"`},
+		{slog.Any("n", struct{ S []int }{}), `"n":{"S":[]}`},
 		{slog.Any("as", AnsiString{ansi.RedFG, "test"}), `"as":"test"`},
 		{slog.Any("as", AnsiString{ansi.RedFG, "test"}), "\"as\":\"\x1b[31mtest\x1b[0m\""},
 		{slog.Any("e", io.EOF), "\"e\":\"\x1b[31mEOF\x1b[0m\""},
@@ -228,11 +230,16 @@ func TestAppendJsonAttr(t *testing.T) {
 		buf = buf[:0]
 		appendJsonAttr(&buf, test.input, false, i >= len(tests)-3)
 
-		got := string(buf)
+		got := normalizeJsonError(string(buf))
 		if got != test.want {
 			t.Fatalf("appendJsonAttr(%+v) = %q, want %q", test.input, got, test.want)
 		}
 	}
+}
+
+// https://cs.opensource.google/go/go/+/refs/tags/go1.27.0:src/encoding/json/v2/errors.go;l=322
+func normalizeJsonError(str string) string {
+	return strings.ReplaceAll(str, "json: unable to ", "json: cannot ")
 }
 
 func TestAppendJsonSource(t *testing.T) {

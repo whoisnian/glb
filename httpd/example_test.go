@@ -21,11 +21,13 @@ func sayHandler(store *httpd.Store) {
 }
 
 func anyHandler(store *httpd.Store) {
-	path := store.RouteParamAny()
-	method := store.R.Method
-	store.RespondJson(http.StatusOK, map[string]string{
-		"method": method,
-		"path":   path,
+	// a struct keeps the member order stable, as encoding/json/v2 does not sort map keys
+	store.RespondJson(http.StatusOK, struct {
+		Method string `json:"method"`
+		Path   string `json:"path"`
+	}{
+		Method: store.R.Method,
+		Path:   store.RouteParamAny(),
 	})
 }
 
